@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: archify-postgres
+    environment:
+      POSTGRES_USER: archify
+      POSTGRES_PASSWORD: archify123
+      POSTGRES_DB: archify
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archify"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: archify-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: archify-backend
+    environment:
+      - DATABASE_URL=postgresql://archify:archify123@postgres:5432/archify
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your-secret-key-change-in-production
+      - JWT_SECRET_KEY=your-jwt-secret-change-in-production
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - DEBUG=True
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /tmp/archify_repos:/tmp/archify_repos
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: archify-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=development
+
+volumes:
+  postgres_data:
+  redis_data:

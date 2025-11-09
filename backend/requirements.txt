@@ -1,0 +1,45 @@
+# FastAPI and web server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.13.0
+psycopg2-binary==2.9.9
+
+# Redis and Celery for background tasks
+redis==5.0.1
+celery==5.3.4
+
+# AI and LLM
+langchain==0.1.0
+langchain-anthropic==0.1.1
+langchain-openai==0.0.2
+langchain-community==0.0.10
+anthropic==0.25.1
+openai==1.6.1
+tiktoken==0.5.2
+faiss-cpu==1.7.4
+chromadb==0.4.18
+
+# Code analysis
+radon==6.0.1
+lizard==1.17.10
+gitpython==3.1.40
+pygments==2.17.2
+tree-sitter==0.20.4
+bandit==1.7.5
+
+# HTTP clients
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Utilities
+python-dotenv==1.0.0
+tenacity==8.2.3
+pyyaml==6.0.1
