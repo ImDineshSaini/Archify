@@ -294,39 +294,133 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
           </Box>
         )}
 
-        {/* Raw analysis fallback - render as markdown */}
-        {layerData.raw_analysis && issues.length === 0 && (
-          <Paper sx={{ p: 3, bgcolor: '#f5f5f5' }}>
-            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-              <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
-              AI Analysis Results (formatted view)
-            </Typography>
-            <Box sx={{
-              '& h1, & h2, & h3': { mt: 2, mb: 1 },
-              '& ul, & ol': { pl: 3 },
-              '& li': { mb: 0.5 },
-              '& p': { mb: 1 },
-              '& code': {
-                bgcolor: '#e0e0e0',
-                px: 0.5,
-                py: 0.25,
-                borderRadius: 1,
-                fontSize: '0.9em'
-              },
-              '& pre': {
-                bgcolor: '#263238',
-                color: '#fff',
-                p: 2,
-                borderRadius: 1,
-                overflow: 'auto'
+        {/* Raw analysis fallback - try to parse JSON first, then render as markdown */}
+        {layerData.raw_analysis && issues.length === 0 && (() => {
+          // Try to extract and parse JSON from raw_analysis
+          let parsedData = null;
+          const rawContent = typeof layerData.raw_analysis === 'string'
+            ? layerData.raw_analysis
+            : JSON.stringify(layerData.raw_analysis, null, 2);
+
+          try {
+            // Try direct JSON parse first
+            parsedData = JSON.parse(rawContent);
+          } catch {
+            // Try to extract JSON from markdown code blocks
+            const jsonMatch = rawContent.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+            if (jsonMatch) {
+              try {
+                parsedData = JSON.parse(jsonMatch[1]);
+              } catch (e) {
+                console.error('Failed to parse JSON from markdown:', e);
               }
-            }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {layerData.raw_analysis}
-              </ReactMarkdown>
-            </Box>
-          </Paper>
-        )}
+            }
+          }
+
+          // If we successfully parsed JSON with expected structure, display it properly
+          if (parsedData && (
+            parsedData.critical_issues ||
+            parsedData.bottlenecks ||
+            parsedData.coverage_gaps ||
+            parsedData.missing_devops ||
+            parsedData.quality_issues ||
+            parsedData.recommendations
+          )) {
+            const parsedIssues = parsedData.critical_issues ||
+                                parsedData.bottlenecks ||
+                                parsedData.coverage_gaps ||
+                                parsedData.missing_devops ||
+                                parsedData.quality_issues ||
+                                [];
+            const parsedRecommendations = parsedData.recommendations || [];
+
+            return (
+              <Box>
+                {/* Parsed Issues */}
+                {parsedIssues.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2 }}>
+                      {parsedIssues.length} {layerName === 'security' ? 'Security Issues' :
+                        layerName === 'performance' ? 'Performance Bottlenecks' :
+                        layerName === 'testing' ? 'Test Coverage Gaps' :
+                        layerName === 'devops' ? 'DevOps Gaps' :
+                        'Code Quality Issues'}
+                    </Typography>
+                    {parsedIssues.map((issue, index) => renderIssue(issue, index))}
+                  </Box>
+                )}
+
+                {/* Parsed Recommendations */}
+                {parsedRecommendations.length > 0 && (
+                  <Box sx={{
+                    mt: 3,
+                    p: 3,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
+                    border: '1px solid #ce93d8'
+                  }}>
+                    <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <DiamondIcon sx={{ color: '#7b1fa2' }} />
+                      Recommended Improvements
+                    </Typography>
+                    <List sx={{ bgcolor: 'rgba(255,255,255,0.6)', borderRadius: 1 }}>
+                      {parsedRecommendations.map((rec, index) => (
+                        <ListItem key={index} sx={{
+                          borderBottom: index < parsedRecommendations.length - 1 ? '1px solid #e0e0e0' : 'none',
+                          '&:hover': { bgcolor: 'rgba(123, 31, 162, 0.05)' }
+                        }}>
+                          <ListItemIcon>
+                            <FlashOnIcon sx={{ color: '#7b1fa2' }} />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={rec}
+                            sx={{ '& .MuiListItemText-primary': { fontWeight: 500 } }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
+              </Box>
+            );
+          }
+
+          // Otherwise, show markdown fallback
+          return (
+            <Paper sx={{ p: 3, bgcolor: '#f5f5f5' }}>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
+                  Unable to parse structured analysis. Showing raw AI response:
+                </Typography>
+              </Alert>
+              <Box sx={{
+                '& h1, & h2, & h3': { mt: 2, mb: 1 },
+                '& ul, & ol': { pl: 3 },
+                '& li': { mb: 0.5 },
+                '& p': { mb: 1 },
+                '& code': {
+                  bgcolor: '#e0e0e0',
+                  px: 0.5,
+                  py: 0.25,
+                  borderRadius: 1,
+                  fontSize: '0.9em'
+                },
+                '& pre': {
+                  bgcolor: '#263238',
+                  color: '#fff',
+                  p: 2,
+                  borderRadius: 1,
+                  overflow: 'auto'
+                }
+              }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {rawContent}
+                </ReactMarkdown>
+              </Box>
+            </Paper>
+          );
+        })()}
       </Box>
     );
   };
@@ -349,15 +443,39 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
                                synthesis.low_priority?.length > 0 ||
                                synthesis.quick_wins?.length > 0;
 
-    // If no structured data, show the raw analysis
+    // If no structured data, try to parse JSON from raw content
     if (!hasStructuredData) {
+      let parsedData = null;
       const rawContent = typeof synthesis === 'string' ? synthesis : JSON.stringify(synthesis, null, 2);
+
+      // Try to extract and parse JSON from markdown code blocks or raw JSON
+      try {
+        // Try direct JSON parse first
+        parsedData = JSON.parse(rawContent);
+      } catch {
+        // Try to extract JSON from markdown code blocks
+        const jsonMatch = rawContent.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+        if (jsonMatch) {
+          try {
+            parsedData = JSON.parse(jsonMatch[1]);
+          } catch (e) {
+            console.error('Failed to parse JSON from markdown:', e);
+          }
+        }
+      }
+
+      // If we successfully parsed JSON with the expected structure, display it properly
+      if (parsedData && (parsedData.executive_summary || parsedData.critical_issues || parsedData.high_priority)) {
+        return renderParsedSynthesis(parsedData);
+      }
+
+      // Otherwise show markdown
       return (
         <Paper sx={{ p: 3 }}>
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2">
               <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
-              AI-Generated Analysis Report (formatted view)
+              Unable to parse structured report. Showing raw AI response:
             </Typography>
           </Alert>
           <Box sx={{
@@ -388,18 +506,24 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
       );
     }
 
+    return renderParsedSynthesis(synthesis);
+  };
+
+  // Helper to render parsed synthesis data
+  const renderParsedSynthesis = (data) => {
+
     return (
       <Box>
         {/* Executive Summary */}
-        {synthesis.executive_summary && (
+        {data.executive_summary && (
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="h6" sx={{ mb: 1 }}>Executive Summary</Typography>
-            <Typography variant="body1">{synthesis.executive_summary}</Typography>
+            <Typography variant="body1">{data.executive_summary}</Typography>
           </Alert>
         )}
 
         {/* Quick Wins */}
-        {synthesis.quick_wins && synthesis.quick_wins.length > 0 && (
+        {data.quick_wins && data.quick_wins.length > 0 && (
           <Box sx={{
             p: 3,
             mb: 3,
@@ -423,9 +547,9 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               />
             </Typography>
             <List sx={{ bgcolor: 'rgba(255,255,255,0.7)', borderRadius: 1 }}>
-              {synthesis.quick_wins.map((win, index) => (
+              {data.quick_wins.map((win, index) => (
                 <ListItem key={index} sx={{
-                  borderBottom: index < synthesis.quick_wins.length - 1 ? '1px solid #e0e0e0' : 'none',
+                  borderBottom: index < data.quick_wins.length - 1 ? '1px solid #e0e0e0' : 'none',
                   '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.05)' }
                 }}>
                   <ListItemIcon>
@@ -442,7 +566,7 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
         )}
 
         {/* Critical Issues */}
-        {synthesis.critical_issues && synthesis.critical_issues.length > 0 && (
+        {data.critical_issues && data.critical_issues.length > 0 && (
           <Accordion
             expanded={expandedPanel === 'critical'}
             onChange={() => setExpandedPanel(expandedPanel === 'critical' ? false : 'critical')}
@@ -464,7 +588,7 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
                 <FireIcon sx={{ color: '#d32f2f', fontSize: 28 }} />
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Critical Issues ({synthesis.critical_issues.length})
+                  Critical Issues ({data.critical_issues.length})
                 </Typography>
                 <Chip
                   label="Fix Immediately"
@@ -479,13 +603,13 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               </Box>
             </AccordionSummary>
             <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
-              {synthesis.critical_issues.map((issue, index) => renderIssue(issue, index))}
+              {data.critical_issues.map((issue, index) => renderIssue(issue, index))}
             </AccordionDetails>
           </Accordion>
         )}
 
         {/* High Priority */}
-        {synthesis.high_priority && synthesis.high_priority.length > 0 && (
+        {data.high_priority && data.high_priority.length > 0 && (
           <Accordion
             expanded={expandedPanel === 'high'}
             onChange={() => setExpandedPanel(expandedPanel === 'high' ? false : 'high')}
@@ -507,7 +631,7 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
                 <BoltIcon sx={{ color: '#f57c00', fontSize: 28 }} />
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  High Priority ({synthesis.high_priority.length})
+                  High Priority ({data.high_priority.length})
                 </Typography>
                 <Chip
                   label="1-2 Sprints"
@@ -522,13 +646,13 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               </Box>
             </AccordionSummary>
             <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
-              {synthesis.high_priority.map((issue, index) => renderIssue(issue, index))}
+              {data.high_priority.map((issue, index) => renderIssue(issue, index))}
             </AccordionDetails>
           </Accordion>
         )}
 
         {/* Medium Priority */}
-        {synthesis.medium_priority && synthesis.medium_priority.length > 0 && (
+        {data.medium_priority && data.medium_priority.length > 0 && (
           <Accordion
             expanded={expandedPanel === 'medium'}
             onChange={() => setExpandedPanel(expandedPanel === 'medium' ? false : 'medium')}
@@ -550,7 +674,7 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
                 <StarIcon sx={{ color: '#1976d2', fontSize: 28 }} />
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Medium Priority ({synthesis.medium_priority.length})
+                  Medium Priority ({data.medium_priority.length})
                 </Typography>
                 <Chip
                   label="1-2 Months"
@@ -565,13 +689,13 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               </Box>
             </AccordionSummary>
             <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
-              {synthesis.medium_priority.map((issue, index) => renderIssue(issue, index))}
+              {data.medium_priority.map((issue, index) => renderIssue(issue, index))}
             </AccordionDetails>
           </Accordion>
         )}
 
         {/* Low Priority */}
-        {synthesis.low_priority && synthesis.low_priority.length > 0 && (
+        {data.low_priority && data.low_priority.length > 0 && (
           <Accordion
             expanded={expandedPanel === 'low'}
             onChange={() => setExpandedPanel(expandedPanel === 'low' ? false : 'low')}
@@ -593,7 +717,7 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
                 <TrophyIcon sx={{ color: '#388e3c', fontSize: 28 }} />
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Low Priority ({synthesis.low_priority.length})
+                  Low Priority ({data.low_priority.length})
                 </Typography>
                 <Chip
                   label="Nice to Have"
@@ -608,16 +732,16 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
               </Box>
             </AccordionSummary>
             <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
-              {synthesis.low_priority.map((issue, index) => renderIssue(issue, index))}
+              {data.low_priority.map((issue, index) => renderIssue(issue, index))}
             </AccordionDetails>
           </Accordion>
         )}
 
         {/* Effort Estimate */}
-        {synthesis.estimated_total_effort_days && (
+        {data.estimated_total_effort_days && (
           <Alert severity="info" sx={{ mt: 3 }}>
             <Typography variant="body1">
-              <strong>Estimated Total Effort:</strong> {synthesis.estimated_total_effort_days} days
+              <strong>Estimated Total Effort:</strong> {data.estimated_total_effort_days} days
             </Typography>
           </Alert>
         )}
