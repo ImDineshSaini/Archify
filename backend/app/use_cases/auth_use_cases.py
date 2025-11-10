@@ -224,6 +224,11 @@ class RegisterUseCase:
 
         # 3. Create user
         from app.models.user import User
+        from sqlalchemy import func
+
+        # Check if this is the first user (make them admin)
+        user_count = self.user_repository.db.query(func.count(User.id)).scalar()
+        is_first_user = user_count == 0
 
         user = User(
             username=command.username,
@@ -231,10 +236,17 @@ class RegisterUseCase:
             hashed_password=get_password_hash(command.password),
             full_name=command.full_name,
             is_active=True,
-            is_admin=False
+            is_admin=is_first_user  # First user is automatically admin
         )
 
         created_user = self.user_repository.create(user)
+
+        if is_first_user:
+            logger.info(
+                "first_user_registered_as_admin",
+                user_id=created_user.id,
+                username=created_user.username
+            )
 
         # 4. Log successful registration
         logger.info(
