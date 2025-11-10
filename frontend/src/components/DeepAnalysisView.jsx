@@ -435,7 +435,7 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
       );
     }
 
-    // Check if we have structured data or raw analysis
+    // Check if we have structured data
     const hasStructuredData = synthesis.executive_summary ||
                                synthesis.critical_issues?.length > 0 ||
                                synthesis.high_priority?.length > 0 ||
@@ -443,70 +443,72 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
                                synthesis.low_priority?.length > 0 ||
                                synthesis.quick_wins?.length > 0;
 
-    // If no structured data, try to parse JSON from raw content
-    if (!hasStructuredData) {
-      let parsedData = null;
-      const rawContent = typeof synthesis === 'string' ? synthesis : JSON.stringify(synthesis, null, 2);
-
-      // Try to extract and parse JSON from markdown code blocks or raw JSON
-      try {
-        // Try direct JSON parse first
-        parsedData = JSON.parse(rawContent);
-      } catch {
-        // Try to extract JSON from markdown code blocks
-        const jsonMatch = rawContent.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-        if (jsonMatch) {
-          try {
-            parsedData = JSON.parse(jsonMatch[1]);
-          } catch (e) {
-            console.error('Failed to parse JSON from markdown:', e);
-          }
-        }
-      }
-
-      // If we successfully parsed JSON with the expected structure, display it properly
-      if (parsedData && (parsedData.executive_summary || parsedData.critical_issues || parsedData.high_priority)) {
-        return renderParsedSynthesis(parsedData);
-      }
-
-      // Otherwise show markdown
-      return (
-        <Paper sx={{ p: 3 }}>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Unable to parse structured report. Showing raw AI response:
-            </Typography>
-          </Alert>
-          <Box sx={{
-            '& h1, & h2, & h3': { mt: 2, mb: 1 },
-            '& ul, & ol': { pl: 3 },
-            '& li': { mb: 0.5 },
-            '& p': { mb: 1 },
-            '& code': {
-              bgcolor: '#e0e0e0',
-              px: 0.5,
-              py: 0.25,
-              borderRadius: 1,
-              fontSize: '0.9em'
-            },
-            '& pre': {
-              bgcolor: '#263238',
-              color: '#fff',
-              p: 2,
-              borderRadius: 1,
-              overflow: 'auto'
-            }
-          }}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {rawContent}
-            </ReactMarkdown>
-          </Box>
-        </Paper>
-      );
+    // If we have structured data, render it directly
+    if (hasStructuredData) {
+      return renderParsedSynthesis(synthesis);
     }
 
-    return renderParsedSynthesis(synthesis);
+    // Otherwise, try to parse from raw_analysis or raw content
+    let parsedData = null;
+    const rawContent = synthesis.raw_analysis ||
+                      (typeof synthesis === 'string' ? synthesis : JSON.stringify(synthesis, null, 2));
+
+    // Try to extract and parse JSON from markdown code blocks or raw JSON
+    try {
+      // Try direct JSON parse first
+      parsedData = JSON.parse(rawContent);
+    } catch {
+      // Try to extract JSON from markdown code blocks
+      const jsonMatch = rawContent.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (jsonMatch) {
+        try {
+          parsedData = JSON.parse(jsonMatch[1]);
+        } catch (e) {
+          console.error('Failed to parse JSON from markdown:', e);
+        }
+      }
+    }
+
+    // If we successfully parsed JSON with the expected structure, display it properly
+    if (parsedData && (parsedData.executive_summary || parsedData.critical_issues || parsedData.high_priority)) {
+      return renderParsedSynthesis(parsedData);
+    }
+
+    // Otherwise show markdown fallback
+    return (
+      <Paper sx={{ p: 3 }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
+            Unable to parse structured report. Showing raw AI response:
+          </Typography>
+        </Alert>
+        <Box sx={{
+          '& h1, & h2, & h3': { mt: 2, mb: 1 },
+          '& ul, & ol': { pl: 3 },
+          '& li': { mb: 0.5 },
+          '& p': { mb: 1 },
+          '& code': {
+            bgcolor: '#e0e0e0',
+            px: 0.5,
+            py: 0.25,
+            borderRadius: 1,
+            fontSize: '0.9em'
+          },
+          '& pre': {
+            bgcolor: '#263238',
+            color: '#fff',
+            p: 2,
+            borderRadius: 1,
+            overflow: 'auto'
+          }
+        }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {rawContent}
+          </ReactMarkdown>
+        </Box>
+      </Paper>
+    );
   };
 
   // Helper to render parsed synthesis data
