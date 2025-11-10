@@ -65,6 +65,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { analysisAPI, repositoryAPI } from '../services/api';
+import NFRAnalysisView from '../components/NFRAnalysisView';
 
 export default function AnalysisDetailEnhanced() {
   const { id } = useParams();
@@ -311,6 +312,7 @@ export default function AnalysisDetailEnhanced() {
           <Paper sx={{ mb: 3 }}>
             <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
               <Tab label="Executive Summary" icon={<TrendingUp />} iconPosition="start" />
+              <Tab label="NFR Analysis (40+)" icon={<Assessment />} iconPosition="start" />
               <Tab label="Detailed Metrics" icon={<Assessment />} iconPosition="start" />
               <Tab label="AI Insights" icon={<Lightbulb />} iconPosition="start" />
               <Tab label="Code Quality" icon={<Build />} iconPosition="start" />
@@ -422,8 +424,13 @@ export default function AnalysisDetailEnhanced() {
             </>
           )}
 
-          {/* Tab 1: Detailed Metrics with Drill-Down */}
+          {/* Tab 1: NFR Analysis (40+ Quality Attributes) */}
           {activeTab === 1 && (
+            <NFRAnalysisView nfrAnalysis={analysis.detailed_report?.nfr_analysis} />
+          )}
+
+          {/* Tab 2: Detailed Metrics with Drill-Down */}
+          {activeTab === 2 && (
             <>
               <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
                 🔍 Detailed Quality Metrics
@@ -597,8 +604,8 @@ ${analysis.scalability_score >= 80 ?
             </>
           )}
 
-          {/* Tab 2: AI Insights */}
-          {activeTab === 2 && (
+          {/* Tab 3: AI Insights */}
+          {activeTab === 3 && (
             <>
               <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
                 💡 AI-Powered Recommendations
@@ -686,8 +693,8 @@ ${analysis.scalability_score >= 80 ?
             </>
           )}
 
-          {/* Tab 3: Code Quality Details */}
-          {activeTab === 3 && (
+          {/* Tab 4: Code Quality Details */}
+          {activeTab === 4 && (
             <>
               <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
                 📈 Code Quality Metrics

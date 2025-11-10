@@ -9,6 +9,7 @@ import lizard
 from git import Repo
 import tempfile
 import shutil
+from app.services.nfr_analyzer import NFRAnalyzer
 
 
 class CodeAnalyzer:
@@ -16,6 +17,7 @@ class CodeAnalyzer:
 
     def __init__(self):
         self.temp_dir = None
+        self.nfr_analyzer = NFRAnalyzer()
 
     def analyze_repository(self, repo_path: str) -> Dict[str, Any]:
         """
@@ -31,9 +33,13 @@ class CodeAnalyzer:
                 "file_structure": self._analyze_file_structure(repo_path),
             }
 
-            # Calculate scores
+            # Calculate basic scores
             scores = self._calculate_scores(results)
             results["scores"] = scores
+
+            # Comprehensive NFR (Non-Functional Requirements) Analysis
+            nfr_analysis = self.nfr_analyzer.analyze_nfr(results, results["architecture"])
+            results["nfr_analysis"] = nfr_analysis
 
             return results
         except Exception as e:
@@ -55,7 +61,8 @@ class CodeAnalyzer:
             dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', 'venv', '__pycache__', 'dist', 'build']]
 
             for file in files:
-                if file.endswith(('.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.go', '.rs')):
+                # Support multiple languages: Python, JS/TS, Java, Go, Rust, Ruby, PHP, C#, etc.
+                if file.endswith(('.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.go', '.rs', '.rb', '.php', '.cs', '.cpp', '.c', '.h', '.swift', '.kt', '.scala')):
                     file_path = os.path.join(root, file)
                     try:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -82,22 +89,26 @@ class CodeAnalyzer:
             "average_complexity": 0,
             "max_complexity": 0,
             "high_complexity_functions": [],
+            "total_functions": 0,
         }
 
         try:
-            analysis = lizard.analyze_files([repo_path])
+            # lizard.analyze_files returns a generator, convert to list
+            analysis_results = list(lizard.analyze_files([repo_path]))
 
             complexities = []
-            for func in analysis.function_list:
-                complexities.append(func.cyclomatic_complexity)
+            for file_analysis in analysis_results:
+                for func in file_analysis.function_list:
+                    complexity_data["total_functions"] += 1
+                    complexities.append(func.cyclomatic_complexity)
 
-                if func.cyclomatic_complexity > 15:  # High complexity threshold
-                    complexity_data["high_complexity_functions"].append({
-                        "name": func.name,
-                        "complexity": func.cyclomatic_complexity,
-                        "lines": func.nloc,
-                        "file": func.filename
-                    })
+                    if func.cyclomatic_complexity > 15:  # High complexity threshold
+                        complexity_data["high_complexity_functions"].append({
+                            "name": func.name,
+                            "complexity": func.cyclomatic_complexity,
+                            "lines": func.nloc,
+                            "file": func.filename
+                        })
 
             if complexities:
                 complexity_data["average_complexity"] = sum(complexities) / len(complexities)
@@ -105,6 +116,8 @@ class CodeAnalyzer:
 
         except Exception as e:
             print(f"Complexity analysis error: {e}")
+            import traceback
+            traceback.print_exc()
 
         return complexity_data
 
