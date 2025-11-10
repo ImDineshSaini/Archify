@@ -12,10 +12,11 @@ class TenantMiddleware(BaseHTTPMiddleware):
     """
     Middleware to identify tenant from request and set schema context
 
-    Tenant identification methods:
+    Tenant identification methods (in priority order):
     1. Subdomain: tenant1.archify.com
     2. Header: X-Tenant-Slug
     3. Query param: ?tenant=tenant1
+    4. JWT token: tenant_slug in token payload
     """
 
     async def dispatch(self, request: Request, call_next):
@@ -32,13 +33,17 @@ class TenantMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
 
-        # Identify tenant
+        # Try to identify tenant from multiple sources
         tenant_slug = self._identify_tenant(request)
+
+        # If no tenant in request, try to extract from JWT token
+        if not tenant_slug:
+            tenant_slug = self._identify_tenant_from_jwt(request)
 
         if not tenant_slug:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Tenant identification required. Use subdomain, X-Tenant-Slug header, or ?tenant= parameter"
+                detail="Tenant identification required. Use subdomain, X-Tenant-Slug header, ?tenant= parameter, or include in JWT"
             )
 
         # Get tenant from database
@@ -88,6 +93,20 @@ class TenantMiddleware(BaseHTTPMiddleware):
         if tenant_slug:
             return tenant_slug
 
+        return None
+
+    def _identify_tenant_from_jwt(self, request: Request) -> Optional[str]:
+        """Extract tenant slug from JWT token"""
+        try:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                from app.core.security import decode_access_token
+                payload = decode_access_token(token)
+                if payload:
+                    return payload.get('tenant_slug')
+        except:
+            pass
         return None
 
 

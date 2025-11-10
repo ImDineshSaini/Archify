@@ -64,3 +64,21 @@ install-backend:
 
 install-frontend:
 	cd frontend && npm install
+
+# Migration commands
+migrate-status:
+	docker-compose exec backend python -m app.cli.migrate status
+
+migrate-public:
+	docker-compose exec backend python -m app.cli.migrate public
+
+migrate-tenants:
+	docker-compose exec backend python -m app.cli.migrate tenants
+
+migrate-tenant:
+	@echo "Usage: make migrate-tenant TENANT=slug"
+	@test -n "$(TENANT)" || (echo "Error: TENANT variable required" && exit 1)
+	docker-compose exec backend python -m app.cli.migrate tenant $(TENANT)
+
+migrate-all:
+	docker-compose exec backend python -m app.cli.migrate all

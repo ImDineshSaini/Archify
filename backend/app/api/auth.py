@@ -43,7 +43,16 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    """Login and get access token"""
+    """
+    Login and get access token
+
+    In multi-tenant mode, tenant context is captured from:
+    - Request state (set by middleware)
+    - X-Tenant-Slug header
+    - ?tenant= query parameter
+
+    The tenant slug is embedded in the JWT token for automatic tenant routing.
+    """
     user = db.query(User).filter(User.username == credentials.username).first()
 
     if not user or not verify_password(credentials.password, user.hashed_password):
@@ -58,10 +67,30 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="Inactive user",
         )
 
+    # Prepare token data
+    token_data = {
+        "sub": user.username,
+        "user_id": user.id,
+        "is_admin": user.is_admin
+    }
+
+    # Include tenant information if in multi-tenant mode
+    if settings.ENABLE_MULTI_TENANCY:
+        from fastapi import Request
+        from app.core.tenant_db import current_tenant_schema
+
+        # Get tenant from current context
+        schema = current_tenant_schema.get()
+        if schema and schema != "public":
+            # Extract tenant slug from schema name (tenant_acme -> acme)
+            tenant_slug = schema.replace("tenant_", "")
+            token_data["tenant_slug"] = tenant_slug
+            token_data["tenant_schema"] = schema
+
     # Create access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username},
+        data=token_data,
         expires_delta=access_token_expires
     )
 

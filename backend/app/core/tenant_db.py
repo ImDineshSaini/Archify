@@ -42,26 +42,31 @@ class TenantDatabaseManager:
 
     @staticmethod
     def create_tenant_schema(schema_name: str):
-        """Create a new schema for a tenant"""
+        """
+        Create a new schema for a tenant
+
+        This now uses migrations instead of creating tables directly.
+        All pending tenant migrations will be automatically applied.
+        """
         db = SessionLocal()
         try:
             # Create schema
             db.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"'))
             db.commit()
 
-            # Set search path to new schema
-            db.execute(text(f'SET search_path TO "{schema_name}", public'))
+            # Apply migrations to new schema
+            from app.core.migration_manager import MigrationManager
 
-            # Create all tables in the new schema
-            from app.models.user import User
-            from app.models.repository import Repository
-            from app.models.analysis import Analysis
-            from app.models.settings import SystemSettings
+            manager = MigrationManager()
+            manager.initialize_tracking(schema_name)
 
-            # Import Base metadata
-            Base.metadata.create_all(bind=engine, checkfirst=True)
+            # Get tenant migrations
+            pending = manager.get_pending_migrations(schema_name)
 
-            db.commit()
+            # Apply each migration
+            for migration in pending:
+                manager.apply_migration_to_schema(schema_name, migration["file"])
+
             return True
         except Exception as e:
             db.rollback()
