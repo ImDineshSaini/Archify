@@ -1,15 +1,18 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from datetime import datetime
 from app.core.database import Base
+from app.core.config import settings
+import os
 
 
 class Tenant(Base):
     """
-    Tenant model - stored in public schema
+    Tenant model - stored in public schema (PostgreSQL) or main database (SQLite)
     Each tenant represents an organization with isolated data
     """
     __tablename__ = "tenants"
-    __table_args__ = {'schema': 'public'}
+    # Only use schema for PostgreSQL, not for SQLite (testing)
+    __table_args__ = {} if os.getenv("DATABASE_URL", "").startswith("sqlite") else {'schema': 'public'}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)  # Organization name
