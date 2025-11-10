@@ -19,10 +19,15 @@ class CodeAnalyzer:
         self.temp_dir = None
         self.nfr_analyzer = NFRAnalyzer()
 
-    def analyze_repository(self, repo_path: str) -> Dict[str, Any]:
+    def analyze_repository(self, repo_path: str, use_ai_enhancement: bool = False, llm_service=None) -> Dict[str, Any]:
         """
         Main method to analyze a repository
         Returns comprehensive metrics and insights
+
+        Args:
+            repo_path: Path to the cloned repository
+            use_ai_enhancement: If True, uses AI for deeper architecture analysis
+            llm_service: LLM service instance (required if use_ai_enhancement=True)
         """
         try:
             results = {
@@ -36,6 +41,30 @@ class CodeAnalyzer:
             # Calculate basic scores
             scores = self._calculate_scores(results)
             results["scores"] = scores
+
+            # AI-Enhanced Architecture Analysis (Premium Feature)
+            if use_ai_enhancement and llm_service:
+                try:
+                    # Generate directory tree
+                    directory_tree = self._generate_directory_tree(repo_path)
+                    results["directory_tree"] = directory_tree
+
+                    # Get AI-powered architecture insights
+                    ai_architecture_analysis = llm_service.analyze_architecture_from_tree(
+                        directory_tree=directory_tree,
+                        basic_analysis=results
+                    )
+                    results["ai_architecture_analysis"] = ai_architecture_analysis
+
+                    # Get AI-enhanced NFR scores
+                    ai_nfr_refinement = llm_service.refine_nfr_scores(
+                        directory_tree=directory_tree,
+                        basic_analysis=results
+                    )
+                    results["ai_nfr_refinement"] = ai_nfr_refinement
+                except Exception as e:
+                    print(f"AI enhancement failed: {e}, continuing with basic analysis")
+                    results["ai_enhancement_error"] = str(e)
 
             # Comprehensive NFR (Non-Functional Requirements) Analysis
             nfr_analysis = self.nfr_analyzer.analyze_nfr(results, results["architecture"])
@@ -492,3 +521,60 @@ class CodeAnalyzer:
         scores["overall"] = sum(scores.values()) / len(scores)
 
         return scores
+
+    def _generate_directory_tree(self, repo_path: str, max_depth: int = 4, max_files: int = 200) -> str:
+        """
+        Generate a directory tree structure for AI analysis
+        Only includes file/folder names (no code content)
+
+        Args:
+            repo_path: Path to repository
+            max_depth: Maximum depth to traverse
+            max_files: Maximum number of files to include
+
+        Returns:
+            String representation of directory tree
+        """
+        tree_lines = []
+        file_count = 0
+
+        def should_skip(name: str) -> bool:
+            """Check if directory/file should be skipped"""
+            skip_dirs = {'.git', 'node_modules', 'venv', '__pycache__', 'dist',
+                        'build', '.next', '.venv', 'vendor', 'target', 'bin', 'obj'}
+            skip_files = {'.DS_Store', 'package-lock.json', 'yarn.lock', '.env'}
+            return name in skip_dirs or name in skip_files
+
+        def build_tree(path: Path, prefix: str = "", depth: int = 0):
+            nonlocal file_count
+
+            if depth > max_depth or file_count > max_files:
+                return
+
+            try:
+                entries = sorted(path.iterdir(), key=lambda x: (not x.is_dir(), x.name))
+
+                for i, entry in enumerate(entries):
+                    if should_skip(entry.name):
+                        continue
+
+                    is_last = i == len(entries) - 1
+                    current_prefix = "└── " if is_last else "├── "
+                    tree_lines.append(f"{prefix}{current_prefix}{entry.name}")
+
+                    if entry.is_dir():
+                        extension = "    " if is_last else "│   "
+                        build_tree(entry, prefix + extension, depth + 1)
+                    else:
+                        file_count += 1
+                        if file_count > max_files:
+                            tree_lines.append(f"{prefix}    ... (truncated, too many files)")
+                            return
+            except PermissionError:
+                pass
+
+        repo_name = Path(repo_path).name
+        tree_lines.append(f"{repo_name}/")
+        build_tree(Path(repo_path))
+
+        return "\n".join(tree_lines)

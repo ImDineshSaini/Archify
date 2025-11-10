@@ -26,6 +26,7 @@ import {
   Business as BusinessIcon,
   AccountCircle,
   Logout,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { logout } from '../store/authSlice';
 
@@ -58,6 +59,7 @@ export default function Layout() {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Repositories', icon: <FolderIcon />, path: '/repositories' },
+    { text: 'Analysis History', icon: <HistoryIcon />, path: '/analysis-history' },
     { text: 'Tenants', icon: <BusinessIcon />, path: '/tenants' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];

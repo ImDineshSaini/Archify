@@ -46,12 +46,17 @@ class AnalysisService:
             repo_path = repo_service.clone_repository(repository.url)
 
             try:
-                # Analyze code
-                code_analyzer = CodeAnalyzer()
-                analysis_results = code_analyzer.analyze_repository(repo_path)
-
-                # Get LLM service
+                # Get LLM service first (needed for both suggestions and AI enhancement)
                 llm_service = await self._get_llm_service()
+
+                # Analyze code with AI enhancement (Premium Feature)
+                code_analyzer = CodeAnalyzer()
+                use_ai_enhancement = True  # Enable AI-enhanced analysis for deeper insights
+                analysis_results = code_analyzer.analyze_repository(
+                    repo_path,
+                    use_ai_enhancement=use_ai_enhancement,
+                    llm_service=llm_service
+                )
 
                 # Generate AI suggestions
                 suggestions = llm_service.generate_analysis_suggestions(analysis_results)

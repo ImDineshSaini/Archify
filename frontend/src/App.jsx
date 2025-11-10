@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Repositories from './pages/Repositories';
 import AnalysisDetailEnhanced from './pages/AnalysisDetailEnhanced';
+import AnalysisHistory from './pages/AnalysisHistory';
 import Settings from './pages/Settings';
 import TenantManagement from './pages/TenantManagement';
 import Layout from './components/Layout';
@@ -40,6 +41,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="repositories" element={<Repositories />} />
           <Route path="analysis/:id" element={<AnalysisDetailEnhanced />} />
+          <Route path="analysis-history" element={<AnalysisHistory />} />
           <Route path="tenants" element={<TenantManagement />} />
           <Route path="settings" element={<Settings />} />
         </Route>
