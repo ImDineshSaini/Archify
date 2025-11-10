@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import Box from '@mui/material/Box';
 
 import Login from './pages/Login';
+import TenantLogin from './pages/TenantLogin';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Repositories from './pages/Repositories';
@@ -20,7 +21,12 @@ function App() {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        {/* Tenant-aware login (NEW - supports multi-tenancy) */}
+        <Route path="/tenant-login" element={<TenantLogin />} />
+        <Route path="/tenant/:tenantSlug/login" element={<TenantLogin />} />
+
+        {/* Standard login (OLD - backwards compatible) */}
+        <Route path="/login" element={<TenantLogin />} />
         <Route path="/register" element={<Register />} />
 
         <Route
