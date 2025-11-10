@@ -36,6 +36,8 @@ import {
   AccessTime as TimeIcon,
   Build as BuildIcon,
 } from '@mui/icons-material';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const DeepAnalysisView = ({ deepAnalysis }) => {
   const [activeTab, setActiveTab] = useState(0);
@@ -203,13 +205,38 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
           </Box>
         )}
 
-        {/* Raw analysis fallback */}
+        {/* Raw analysis fallback - render as markdown */}
         {layerData.raw_analysis && issues.length === 0 && (
-          <Alert severity="info">
-            <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap' }}>
-              {layerData.raw_analysis}
+          <Paper sx={{ p: 3, bgcolor: '#f5f5f5' }}>
+            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+              <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
+              AI Analysis Results (formatted view)
             </Typography>
-          </Alert>
+            <Box sx={{
+              '& h1, & h2, & h3': { mt: 2, mb: 1 },
+              '& ul, & ol': { pl: 3 },
+              '& li': { mb: 0.5 },
+              '& p': { mb: 1 },
+              '& code': {
+                bgcolor: '#e0e0e0',
+                px: 0.5,
+                py: 0.25,
+                borderRadius: 1,
+                fontSize: '0.9em'
+              },
+              '& pre': {
+                bgcolor: '#263238',
+                color: '#fff',
+                p: 2,
+                borderRadius: 1,
+                overflow: 'auto'
+              }
+            }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {layerData.raw_analysis}
+              </ReactMarkdown>
+            </Box>
+          </Paper>
         )}
       </Box>
     );
@@ -222,6 +249,53 @@ const DeepAnalysisView = ({ deepAnalysis }) => {
         <Alert severity="warning">
           <Typography>Synthesis report not available: {synthesis?.error || 'Unknown error'}</Typography>
         </Alert>
+      );
+    }
+
+    // Check if we have structured data or raw analysis
+    const hasStructuredData = synthesis.executive_summary ||
+                               synthesis.critical_issues?.length > 0 ||
+                               synthesis.high_priority?.length > 0 ||
+                               synthesis.medium_priority?.length > 0 ||
+                               synthesis.low_priority?.length > 0 ||
+                               synthesis.quick_wins?.length > 0;
+
+    // If no structured data, show the raw analysis
+    if (!hasStructuredData) {
+      const rawContent = typeof synthesis === 'string' ? synthesis : JSON.stringify(synthesis, null, 2);
+      return (
+        <Paper sx={{ p: 3 }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
+              AI-Generated Analysis Report (formatted view)
+            </Typography>
+          </Alert>
+          <Box sx={{
+            '& h1, & h2, & h3': { mt: 2, mb: 1 },
+            '& ul, & ol': { pl: 3 },
+            '& li': { mb: 0.5 },
+            '& p': { mb: 1 },
+            '& code': {
+              bgcolor: '#e0e0e0',
+              px: 0.5,
+              py: 0.25,
+              borderRadius: 1,
+              fontSize: '0.9em'
+            },
+            '& pre': {
+              bgcolor: '#263238',
+              color: '#fff',
+              p: 2,
+              borderRadius: 1,
+              overflow: 'auto'
+            }
+          }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {rawContent}
+            </ReactMarkdown>
+          </Box>
+        </Paper>
       );
     }
 
