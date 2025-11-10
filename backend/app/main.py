@@ -46,6 +46,29 @@ app = FastAPI(
     description="AI-powered code analysis platform with multi-tenancy support"
 )
 
+# Add middleware to handle trailing slashes (fixes 307 redirects)
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+class TrailingSlashMiddleware(BaseHTTPMiddleware):
+    """Automatically add trailing slash to API requests to prevent 307 redirects"""
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        # Add trailing slash to API paths that don't have one and aren't file requests
+        if path.startswith("/api/") and not path.endswith("/") and "." not in path.split("/")[-1]:
+            # Don't add trailing slash if it's a specific resource (has ID)
+            # e.g., /api/repositories/123 should stay as is
+            path_parts = path.split("/")
+            last_part = path_parts[-1]
+            # If last part is not a number (ID), add trailing slash
+            if not last_part.isdigit() and last_part not in ["login", "register", "health", "metrics"]:
+                request.scope["path"] = path + "/"
+
+        response = await call_next(request)
+        return response
+
+app.add_middleware(TrailingSlashMiddleware)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
