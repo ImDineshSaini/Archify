@@ -65,14 +65,27 @@ class LLMService:
         try:
             messages = [
                 SystemMessage(content="""You are an expert software architect and code reviewer.
-                Analyze the provided code metrics and provide actionable suggestions to improve:
-                1. Code maintainability
-                2. System reliability
-                3. Scalability
-                4. Security
-                5. Overall architecture quality
+                Analyze the provided code metrics and provide CONCRETE, ACTIONABLE suggestions.
 
-                Be specific and prioritize the most impactful improvements."""),
+                IMPORTANT: Be specific with tools, patterns, and implementation steps. Examples:
+                - ❌ BAD: "Improve auditability through architecture refactoring"
+                - ✅ GOOD: "Implement structured logging using ELK Stack (Elasticsearch, Logstack, Kibana) for centralized audit trails"
+
+                - ❌ BAD: "Enhance scalability"
+                - ✅ GOOD: "Implement Redis caching for frequently accessed data and add horizontal pod autoscaling (HPA) in Kubernetes"
+
+                - ❌ BAD: "Improve code structure"
+                - ✅ GOOD: "Refactor data access to Repository Pattern - move all database queries from controllers to dedicated repository classes"
+
+                For each recommendation, specify:
+                1. Exact tool/library/pattern to use (with version if relevant)
+                2. Where in the codebase to implement it
+                3. Expected impact (performance gain, reduced complexity, etc.)
+                4. Priority level (Critical/High/Medium/Low)
+
+                Focus on: Architecture patterns, Design patterns, DevOps tools, Monitoring tools, Testing frameworks, Security tools, Performance optimization techniques.
+
+                Prioritize the most impactful improvements."""),
                 HumanMessage(content=prompt)
             ]
 
@@ -119,7 +132,25 @@ class LLMService:
         for func in complexity.get('high_complexity_functions', [])[:5]:
             prompt += f"\n- {func['name']}: Complexity {func['complexity']} ({func['lines']} lines)"
 
-        prompt += "\n\nBased on this analysis, provide specific, actionable recommendations to improve the codebase."
+        prompt += """
+
+Based on this analysis, provide 5-8 CONCRETE recommendations. For each recommendation, use this format:
+
+**[Priority] Recommendation Title**
+- **Tool/Pattern:** [Specific tool, library, pattern, or framework]
+- **Implementation:** [Where and how to implement - be specific about files/modules]
+- **Expected Impact:** [Quantify if possible: "Reduce complexity by 30%", "Improve response time by 50%", etc.]
+- **Resources:** [Link to docs or mention specific tutorials if relevant]
+
+Examples of good recommendations:
+- Implement Repository Pattern using TypeORM decorators in data access layer
+- Add OpenTelemetry instrumentation for distributed tracing
+- Set up SonarQube quality gates in CI/CD pipeline
+- Refactor to CQRS pattern using MediatR library
+- Implement circuit breaker pattern using Polly (C#) or resilience4j (Java)
+- Add Redis caching layer with cache-aside pattern
+- Implement API rate limiting using express-rate-limit or rate-limiter-flexible
+- Set up Prometheus + Grafana for application monitoring"""
 
         return prompt
 
@@ -180,17 +211,20 @@ You are an expert software architect. Analyze this codebase directory structure 
 - Scalability: {scores.get('scalability', 0):.1f}/100
 
 ## Your Task:
-Analyze the directory structure and provide:
+Analyze the directory structure and provide CONCRETE, ACTIONABLE insights:
 
-1. **Additional Architecture Patterns** (not detected by heuristics)
-2. **Anti-Patterns** you notice
-3. **SOLID Principles Compliance** (detailed assessment)
-4. **Testability Assessment** (how easy to test this structure?)
-5. **Coupling & Cohesion** (are modules properly separated?)
-6. **Suggested Refactoring** (specific structural improvements)
+1. **Additional Architecture Patterns** (not detected by heuristics) - Be specific: "Uses Facade Pattern in /api/facades", not just "Good separation"
+2. **Anti-Patterns** - Reference actual folders: "God Object in /services/user_service.py", "No separation between business logic and data access in /controllers"
+3. **SOLID Principles Compliance** - Specific violations with file paths: "SRP violated in /services/payment.py - handles both payment processing AND email notifications"
+4. **Testability Assessment** - Concrete issues: "No test coverage for /services/auth.py", "Hard-coded dependencies in /api/routes.py prevent mocking"
+5. **Coupling & Cohesion** - Specific examples: "/modules/orders depends on 5 other modules", "Tight coupling between /ui and /database layers"
+6. **Refactoring Suggestions** - Actionable steps with tools:
+   - "Extract email logic from PaymentService into dedicated EmailService"
+   - "Implement Dependency Injection using dependency-injector library"
+   - "Add integration tests using pytest-mock for /services layer"
+   - "Refactor /controllers to use Repository Pattern with SQLAlchemy repositories"
 
-Be specific and reference actual folders/files you see in the tree.
-Format as JSON with keys: additional_patterns, anti_patterns, solid_assessment, testability_score (0-100), coupling_analysis, refactoring_suggestions
+Format as JSON with keys: additional_patterns (array), anti_patterns (array), solid_assessment (object with specific violations), testability_score (0-100), coupling_analysis (object), refactoring_suggestions (array of concrete steps)
 """
 
             messages = [
@@ -248,20 +282,21 @@ Analyze this codebase structure and refine the NFR scores:
 {json.dumps(key_nfrs, indent=2)}
 
 ## Your Task:
-Based on the ACTUAL directory structure, provide refined scores (0-100) for these NFRs:
+Based on the ACTUAL directory structure, provide refined scores (0-100) with CONCRETE observations:
 
-1. **Scalability** - Can this architecture handle growth?
-2. **Testability** - How easy is it to test? (check for test folders)
-3. **Maintainability** - Is the structure clean and organized?
-4. **Deployability** - Deployment complexity? (check for Docker, CI/CD files)
-5. **Observability** - Logging/monitoring setup?
+1. **Scalability** - Check for: caching (Redis/Memcached), message queues (RabbitMQ/Kafka), load balancing configs, database connection pooling
+2. **Testability** - Check for: /tests or /test folders, test fixtures, mocking setup, CI test configs (.github/workflows), test coverage tools
+3. **Maintainability** - Check for: clear module separation, consistent naming, documentation (/docs), linting configs (.eslintrc, .pylintrc)
+4. **Deployability** - Check for: Dockerfile, docker-compose.yml, Kubernetes manifests (/k8s), CI/CD files (.github/workflows, .gitlab-ci.yml)
+5. **Observability** - Check for: logging configs, monitoring setup (Prometheus, Grafana), APM tools (New Relic, DataDog), health check endpoints
 
 For each NFR, provide:
 - refined_score (0-100)
 - confidence (low/medium/high)
-- reasoning (why this score based on structure)
+- reasoning (CONCRETE evidence from directory structure - reference actual files/folders you see)
+- recommendations (specific tools/patterns to improve, e.g., "Add Dockerfile for containerization", "Implement pytest fixtures in /tests")
 
-Format as JSON: {{"scalability": {{"refined_score": 85, "confidence": "high", "reasoning": "..."}}, ...}}
+Format as JSON: {{"scalability": {{"refined_score": 85, "confidence": "high", "reasoning": "Found Redis config in /config/redis.py and message queue in /workers", "recommendations": ["Add horizontal scaling with Kubernetes HPA", "Implement database read replicas"]}}, ...}}
 """
 
             messages = [
@@ -293,7 +328,7 @@ Format as JSON: {{"scalability": {{"refined_score": 85, "confidence": "high", "r
         """
         try:
             prompt = f"""
-Create a prioritized improvement roadmap to enhance this codebase.
+Create a prioritized improvement roadmap with CONCRETE, ACTIONABLE steps.
 
 Current Scores:
 - Maintainability: {current_scores.get('maintainability', 0):.1f}/100
@@ -303,7 +338,24 @@ Current Scores:
 
 Target: All scores above 80/100
 
-Provide a phased approach (3 phases) with specific tasks for each phase.
+Provide a phased approach (3 phases) with SPECIFIC tools, patterns, and implementation steps:
+
+**Phase 1 (Weeks 1-2): Quick Wins**
+- Example: "Set up ESLint/Prettier for code consistency"
+- Example: "Add Dockerfile and docker-compose.yml for local development"
+- Example: "Implement basic logging with Winston/Bunyan"
+
+**Phase 2 (Weeks 3-6): Structural Improvements**
+- Example: "Refactor to Repository Pattern - extract all DB queries from controllers"
+- Example: "Add Redis caching layer for frequently accessed data"
+- Example: "Implement JWT authentication with refresh tokens"
+
+**Phase 3 (Weeks 7-12): Advanced Enhancements**
+- Example: "Set up Kubernetes cluster with HPA for auto-scaling"
+- Example: "Implement distributed tracing with OpenTelemetry + Jaeger"
+- Example: "Add comprehensive E2E tests with Cypress/Playwright"
+
+For each task, include: estimated effort (hours), required expertise (Junior/Mid/Senior), and expected score impact (+5 points).
 """
 
             messages = [
