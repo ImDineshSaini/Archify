@@ -368,3 +368,523 @@ For each task, include: estimated effort (hours), required expertise (Junior/Mid
 
         except Exception as e:
             return f"Error generating roadmap: {str(e)}"
+
+    # ============================================================================
+    # MULTI-STAGE DEEP ANALYSIS METHODS
+    # ============================================================================
+
+    def analyze_security_layer(self, directory_tree: str, basic_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Stage 1: Deep security analysis - finds specific security issues
+        """
+        try:
+            architecture = basic_analysis.get("architecture", {})
+
+            prompt = f"""
+You are a security expert conducting a code security audit. Analyze this codebase structure for SPECIFIC security vulnerabilities.
+
+# Directory Structure:
+```
+{directory_tree[:3000]}
+```
+
+# Architecture:
+- Language: {architecture.get('language')}
+- Frameworks: {', '.join(architecture.get('frameworks', []))}
+
+## Your Task:
+Find SPECIFIC security issues with EXACT file/folder references. Be concrete:
+
+❌ BAD: "Improve authentication security"
+✅ GOOD: "No password hashing detected - check if passwords stored in plaintext in /models/user.py or /services/auth.py"
+
+Check for:
+1. **Authentication/Authorization Issues**
+   - Missing JWT validation in /middleware
+   - No rate limiting on /api/auth/login endpoint
+   - Weak password requirements in /validators
+
+2. **Data Protection Issues**
+   - No .env file but hardcoded secrets in /config
+   - Missing input sanitization in /controllers
+   - No HTTPS enforcement in server config
+
+3. **Dependency Vulnerabilities**
+   - Outdated packages in package.json/requirements.txt
+   - Missing security headers in /middleware
+
+4. **API Security**
+   - No CORS configuration in /api
+   - Missing API rate limiting
+   - No request validation middleware
+
+Return JSON with:
+{{
+  "critical_issues": [
+    {{
+      "issue": "Specific issue description",
+      "location": "Exact file/folder path",
+      "evidence": "What you see in directory tree",
+      "fix": "Specific tool/library to use",
+      "priority": "Critical/High/Medium/Low"
+    }}
+  ],
+  "recommendations": [
+    "Install helmet.js for security headers",
+    "Add express-rate-limit middleware to /api/routes.js",
+    "Implement bcrypt for password hashing in /services/auth.py"
+  ]
+}}
+"""
+
+            messages = [
+                SystemMessage(content="You are a security expert specializing in vulnerability detection."),
+                HumanMessage(content=prompt)
+            ]
+
+            response = self.client.invoke(messages)
+
+            try:
+                import json
+                result = json.loads(response.content)
+            except:
+                result = {"raw_analysis": response.content, "critical_issues": [], "recommendations": []}
+
+            return result
+
+        except Exception as e:
+            return {"error": f"Security analysis failed: {str(e)}"}
+
+    def analyze_performance_layer(self, directory_tree: str, basic_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Stage 2: Deep performance analysis - finds specific performance bottlenecks
+        """
+        try:
+            complexity = basic_analysis.get("complexity", {})
+            architecture = basic_analysis.get("architecture", {})
+
+            prompt = f"""
+You are a performance optimization expert. Find SPECIFIC performance issues in this codebase.
+
+# Directory Structure:
+```
+{directory_tree[:3000]}
+```
+
+# Metrics:
+- Avg Complexity: {complexity.get('average_complexity', 0):.2f}
+- Max Complexity: {complexity.get('max_complexity', 0)}
+- Language: {architecture.get('language')}
+
+## Your Task:
+Find SPECIFIC performance bottlenecks with EXACT locations:
+
+❌ BAD: "Optimize database queries"
+✅ GOOD: "Likely N+1 query problem in /controllers/orders.py - no eager loading detected"
+
+Check for:
+1. **Database Issues**
+   - No caching layer (Redis/Memcached)
+   - Missing database indexes (check migration files)
+   - N+1 query patterns in /controllers or /services
+   - No connection pooling in /config/database
+
+2. **API Performance**
+   - Missing pagination in /api/routes
+   - No response compression in server config
+   - Synchronous operations that should be async
+
+3. **Frontend Performance** (if applicable)
+   - No lazy loading in /components
+   - Missing code splitting in webpack/vite config
+   - No image optimization
+
+4. **Infrastructure**
+   - No load balancing configuration
+   - Missing CDN setup for static assets
+   - No caching headers in /middleware
+
+Return JSON with:
+{{
+  "bottlenecks": [
+    {{
+      "issue": "Specific bottleneck",
+      "location": "File/folder path",
+      "evidence": "What indicates this issue",
+      "fix": "Specific optimization technique/tool",
+      "expected_improvement": "e.g., 50% faster response time",
+      "priority": "Critical/High/Medium/Low"
+    }}
+  ],
+  "recommendations": [
+    "Add Redis caching using redis-py in /services/cache.py",
+    "Implement database connection pooling with SQLAlchemy pool_size=10"
+  ]
+}}
+"""
+
+            messages = [
+                SystemMessage(content="You are a performance optimization expert."),
+                HumanMessage(content=prompt)
+            ]
+
+            response = self.client.invoke(messages)
+
+            try:
+                import json
+                result = json.loads(response.content)
+            except:
+                result = {"raw_analysis": response.content, "bottlenecks": [], "recommendations": []}
+
+            return result
+
+        except Exception as e:
+            return {"error": f"Performance analysis failed: {str(e)}"}
+
+    def analyze_testing_layer(self, directory_tree: str, basic_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Stage 3: Deep testing analysis - finds testing gaps
+        """
+        try:
+            architecture = basic_analysis.get("architecture", {})
+
+            prompt = f"""
+You are a QA expert analyzing test coverage and quality. Find SPECIFIC testing gaps.
+
+# Directory Structure:
+```
+{directory_tree[:3000]}
+```
+
+# Architecture:
+- Language: {architecture.get('language')}
+- Frameworks: {', '.join(architecture.get('frameworks', []))}
+
+## Your Task:
+Find SPECIFIC testing gaps with EXACT locations:
+
+❌ BAD: "Add more tests"
+✅ GOOD: "No test coverage for /services/payment.py - critical business logic untested"
+
+Check for:
+1. **Test Coverage Gaps**
+   - Missing /tests or /test directory
+   - Critical paths without tests (auth, payment, etc.)
+   - No integration tests for /api endpoints
+   - Missing E2E tests
+
+2. **Test Quality Issues**
+   - No test fixtures or mocking setup
+   - Hard-coded test data
+   - No CI test automation (.github/workflows)
+   - Missing test coverage reporting
+
+3. **Testing Infrastructure**
+   - No testing framework configured (pytest, jest, etc.)
+   - Missing test database setup
+   - No test environment configuration
+
+Return JSON with:
+{{
+  "coverage_gaps": [
+    {{
+      "missing_tests_for": "File/module path",
+      "test_type": "unit/integration/e2e",
+      "risk_level": "Critical/High/Medium/Low",
+      "fix": "Specific testing framework/approach"
+    }}
+  ],
+  "recommendations": [
+    "Add pytest fixtures in /tests/conftest.py for database mocking",
+    "Implement integration tests using pytest-mock for /services layer",
+    "Set up GitHub Actions workflow for automated testing"
+  ]
+}}
+"""
+
+            messages = [
+                SystemMessage(content="You are a QA expert specializing in test strategy."),
+                HumanMessage(content=prompt)
+            ]
+
+            response = self.client.invoke(messages)
+
+            try:
+                import json
+                result = json.loads(response.content)
+            except:
+                result = {"raw_analysis": response.content, "coverage_gaps": [], "recommendations": []}
+
+            return result
+
+        except Exception as e:
+            return {"error": f"Testing analysis failed: {str(e)}"}
+
+    def analyze_devops_layer(self, directory_tree: str, basic_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Stage 4: Deep DevOps analysis - finds deployment and infrastructure issues
+        """
+        try:
+            architecture = basic_analysis.get("architecture", {})
+
+            prompt = f"""
+You are a DevOps expert analyzing deployment and infrastructure. Find SPECIFIC DevOps gaps.
+
+# Directory Structure:
+```
+{directory_tree[:3000]}
+```
+
+# Architecture:
+- Language: {architecture.get('language')}
+- Frameworks: {', '.join(architecture.get('frameworks', []))}
+
+## Your Task:
+Find SPECIFIC DevOps gaps with EXACT file references:
+
+❌ BAD: "Improve deployment process"
+✅ GOOD: "No Dockerfile found - containerization missing for deployment"
+
+Check for:
+1. **Containerization**
+   - Missing Dockerfile in root
+   - No docker-compose.yml for local dev
+   - Missing .dockerignore
+
+2. **CI/CD**
+   - No CI/CD configuration (.github/workflows, .gitlab-ci.yml, Jenkinsfile)
+   - Missing automated deployment scripts
+   - No build automation
+
+3. **Infrastructure as Code**
+   - No Kubernetes manifests (/k8s or /manifests)
+   - Missing Terraform/CloudFormation in /infrastructure
+   - No Helm charts
+
+4. **Monitoring & Observability**
+   - No health check endpoints in /api
+   - Missing Prometheus metrics
+   - No centralized logging configuration
+   - Missing APM setup (New Relic, DataDog)
+
+Return JSON with:
+{{
+  "missing_devops": [
+    {{
+      "gap": "Specific missing component",
+      "location": "Where it should be",
+      "impact": "Risk/consequence",
+      "fix": "Specific tool/setup to implement",
+      "priority": "Critical/High/Medium/Low"
+    }}
+  ],
+  "recommendations": [
+    "Create Dockerfile with multi-stage build in project root",
+    "Add GitHub Actions workflow in .github/workflows/ci.yml",
+    "Implement health check endpoint at /api/health using Flask-HealthCheck"
+  ]
+}}
+"""
+
+            messages = [
+                SystemMessage(content="You are a DevOps expert specializing in deployment automation."),
+                HumanMessage(content=prompt)
+            ]
+
+            response = self.client.invoke(messages)
+
+            try:
+                import json
+                result = json.loads(response.content)
+            except:
+                result = {"raw_analysis": response.content, "missing_devops": [], "recommendations": []}
+
+            return result
+
+        except Exception as e:
+            return {"error": f"DevOps analysis failed: {str(e)}"}
+
+    def analyze_code_quality_layer(self, directory_tree: str, basic_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Stage 5: Deep code quality analysis - finds maintainability issues
+        """
+        try:
+            complexity = basic_analysis.get("complexity", {})
+            high_complexity_funcs = complexity.get('high_complexity_functions', [])
+
+            prompt = f"""
+You are a code quality expert analyzing maintainability. Find SPECIFIC code quality issues.
+
+# Directory Structure:
+```
+{directory_tree[:3000]}
+```
+
+# Complexity Metrics:
+- Avg Complexity: {complexity.get('average_complexity', 0):.2f}
+- Max Complexity: {complexity.get('max_complexity', 0)}
+- High Complexity Functions: {len(high_complexity_funcs)}
+
+## Your Task:
+Find SPECIFIC code quality issues with EXACT locations:
+
+❌ BAD: "Refactor complex code"
+✅ GOOD: "calculatePrice() has complexity 45 - extract tax and discount logic into separate functions"
+
+Check for:
+1. **Code Smells**
+   - God Objects (files > 500 lines)
+   - Duplicate code patterns
+   - Long parameter lists
+   - Deep nesting in complex functions
+
+2. **Architecture Violations**
+   - Business logic in controllers (should be in /services)
+   - Database queries in views/controllers
+   - Tight coupling between modules
+   - Missing abstraction layers
+
+3. **Maintainability Issues**
+   - No linting configuration (.eslintrc, .pylintrc, etc.)
+   - Missing code formatting (Prettier, Black)
+   - No documentation (/docs folder)
+   - Inconsistent naming conventions
+
+4. **SOLID Principle Violations**
+   - SRP violations (classes doing too much)
+   - Hard-coded dependencies (no DI)
+   - Tight coupling between layers
+
+Return JSON with:
+{{
+  "quality_issues": [
+    {{
+      "issue": "Specific code smell/violation",
+      "location": "File/function path",
+      "evidence": "What indicates this issue",
+      "refactoring": "Specific refactoring technique",
+      "priority": "Critical/High/Medium/Low"
+    }}
+  ],
+  "recommendations": [
+    "Extract business logic from /controllers to /services using Service Layer pattern",
+    "Add ESLint with Airbnb config for code consistency",
+    "Implement Dependency Injection using dependency-injector library"
+  ]
+}}
+"""
+
+            messages = [
+                SystemMessage(content="You are a code quality expert specializing in maintainability."),
+                HumanMessage(content=prompt)
+            ]
+
+            response = self.client.invoke(messages)
+
+            try:
+                import json
+                result = json.loads(response.content)
+            except:
+                result = {"raw_analysis": response.content, "quality_issues": [], "recommendations": []}
+
+            return result
+
+        except Exception as e:
+            return {"error": f"Code quality analysis failed: {str(e)}"}
+
+    def synthesize_deep_analysis(
+        self,
+        security_analysis: Dict[str, Any],
+        performance_analysis: Dict[str, Any],
+        testing_analysis: Dict[str, Any],
+        devops_analysis: Dict[str, Any],
+        code_quality_analysis: Dict[str, Any],
+        basic_analysis: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Stage 6: Synthesize all layer analyses into prioritized final report
+        """
+        try:
+            import json
+
+            prompt = f"""
+You are a technical architect creating a comprehensive analysis report. Synthesize findings from multiple layer analyses into a PRIORITIZED action plan.
+
+# Layer Analysis Results:
+
+## Security Findings:
+{json.dumps(security_analysis, indent=2)[:1500]}
+
+## Performance Findings:
+{json.dumps(performance_analysis, indent=2)[:1500]}
+
+## Testing Findings:
+{json.dumps(testing_analysis, indent=2)[:1500]}
+
+## DevOps Findings:
+{json.dumps(devops_analysis, indent=2)[:1500]}
+
+## Code Quality Findings:
+{json.dumps(code_quality_analysis, indent=2)[:1500]}
+
+## Your Task:
+Create a PRIORITIZED synthesis report with:
+
+1. **Critical Issues** (Fix immediately - security, data loss risks)
+2. **High Priority** (Fix within 1-2 sprints - performance bottlenecks, missing tests for critical paths)
+3. **Medium Priority** (Fix within 1-2 months - code quality, DevOps improvements)
+4. **Low Priority** (Nice to have - documentation, minor refactorings)
+
+For each priority level, provide:
+- Top 5 most impactful issues with specific locations
+- Expected business impact (uptime, performance, security, speed to market)
+- Effort estimate (hours/days)
+- Dependencies between issues
+
+Return JSON with:
+{{
+  "executive_summary": "2-3 sentence overview of overall architecture health",
+  "critical_issues": [
+    {{
+      "issue": "Specific issue",
+      "location": "Exact file/path",
+      "category": "Security/Performance/Testing/DevOps/Quality",
+      "fix": "Concrete solution with tool",
+      "effort_hours": 8,
+      "business_impact": "e.g., Prevents data breaches",
+      "dependencies": []
+    }}
+  ],
+  "high_priority": [...],
+  "medium_priority": [...],
+  "low_priority": [...],
+  "quick_wins": [
+    "Easy fixes with high impact - can be done in < 4 hours"
+  ],
+  "estimated_total_effort_days": 30
+}}
+"""
+
+            messages = [
+                SystemMessage(content="You are a technical architect creating comprehensive analysis reports."),
+                HumanMessage(content=prompt)
+            ]
+
+            response = self.client.invoke(messages)
+
+            try:
+                result = json.loads(response.content)
+            except:
+                result = {
+                    "executive_summary": response.content[:500],
+                    "critical_issues": [],
+                    "high_priority": [],
+                    "medium_priority": [],
+                    "low_priority": [],
+                    "quick_wins": []
+                }
+
+            return result
+
+        except Exception as e:
+            return {"error": f"Synthesis failed: {str(e)}"}

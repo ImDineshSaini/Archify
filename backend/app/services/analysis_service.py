@@ -46,10 +46,10 @@ class AnalysisService:
             repo_path = repo_service.clone_repository(repository.url)
 
             try:
-                # Get LLM service first (needed for both suggestions and AI enhancement)
+                # Get LLM service first (needed for all AI-powered analysis)
                 llm_service = await self._get_llm_service()
 
-                # Analyze code with AI enhancement (Premium Feature)
+                # Run static code analysis with AI enhancement (Premium Feature)
                 code_analyzer = CodeAnalyzer()
                 use_ai_enhancement = True  # Enable AI-enhanced analysis for deeper insights
                 analysis_results = code_analyzer.analyze_repository(
@@ -58,7 +58,18 @@ class AnalysisService:
                     llm_service=llm_service
                 )
 
-                # Generate AI suggestions
+                # Multi-Stage Deep Analysis (Premium Feature)
+                # Runs 5 layer-specific analyses + synthesis for specific findings
+                use_deep_analysis = True  # Enable deep multi-stage analysis
+                if use_deep_analysis and analysis_results.get("directory_tree"):
+                    deep_analysis = await self._run_deep_analysis(
+                        llm_service=llm_service,
+                        directory_tree=analysis_results.get("directory_tree"),
+                        basic_analysis=analysis_results
+                    )
+                    analysis_results["deep_analysis"] = deep_analysis
+
+                # Generate AI suggestions (always run for any analysis)
                 suggestions = llm_service.generate_analysis_suggestions(analysis_results)
 
                 # Update analysis with results
@@ -174,3 +185,91 @@ class AnalysisService:
             endpoint=endpoint,
             deployment_name=deployment_name
         )
+
+    async def _run_deep_analysis(
+        self,
+        llm_service: LLMService,
+        directory_tree: str,
+        basic_analysis: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Run multi-stage deep analysis with layer-by-layer examination
+
+        This premium feature provides:
+        - 5 layer-specific analyses (Security, Performance, Testing, DevOps, Code Quality)
+        - Specific findings with exact file/folder locations
+        - Concrete recommendations with tools and libraries
+        - Prioritized synthesis report
+
+        Total LLM calls: 6 (5 layer analyses + 1 synthesis)
+        """
+        deep_analysis = {
+            "layers": {},
+            "synthesis": {},
+            "analysis_completed": False,
+            "errors": []
+        }
+
+        try:
+            # Stage 1: Security Analysis
+            try:
+                security_analysis = llm_service.analyze_security_layer(directory_tree, basic_analysis)
+                deep_analysis["layers"]["security"] = security_analysis
+            except Exception as e:
+                deep_analysis["errors"].append(f"Security analysis failed: {str(e)}")
+                deep_analysis["layers"]["security"] = {"error": str(e)}
+
+            # Stage 2: Performance Analysis
+            try:
+                performance_analysis = llm_service.analyze_performance_layer(directory_tree, basic_analysis)
+                deep_analysis["layers"]["performance"] = performance_analysis
+            except Exception as e:
+                deep_analysis["errors"].append(f"Performance analysis failed: {str(e)}")
+                deep_analysis["layers"]["performance"] = {"error": str(e)}
+
+            # Stage 3: Testing Analysis
+            try:
+                testing_analysis = llm_service.analyze_testing_layer(directory_tree, basic_analysis)
+                deep_analysis["layers"]["testing"] = testing_analysis
+            except Exception as e:
+                deep_analysis["errors"].append(f"Testing analysis failed: {str(e)}")
+                deep_analysis["layers"]["testing"] = {"error": str(e)}
+
+            # Stage 4: DevOps Analysis
+            try:
+                devops_analysis = llm_service.analyze_devops_layer(directory_tree, basic_analysis)
+                deep_analysis["layers"]["devops"] = devops_analysis
+            except Exception as e:
+                deep_analysis["errors"].append(f"DevOps analysis failed: {str(e)}")
+                deep_analysis["layers"]["devops"] = {"error": str(e)}
+
+            # Stage 5: Code Quality Analysis
+            try:
+                code_quality_analysis = llm_service.analyze_code_quality_layer(directory_tree, basic_analysis)
+                deep_analysis["layers"]["code_quality"] = code_quality_analysis
+            except Exception as e:
+                deep_analysis["errors"].append(f"Code quality analysis failed: {str(e)}")
+                deep_analysis["layers"]["code_quality"] = {"error": str(e)}
+
+            # Stage 6: Synthesis - Combine all findings into prioritized report
+            try:
+                synthesis = llm_service.synthesize_deep_analysis(
+                    security_analysis=deep_analysis["layers"].get("security", {}),
+                    performance_analysis=deep_analysis["layers"].get("performance", {}),
+                    testing_analysis=deep_analysis["layers"].get("testing", {}),
+                    devops_analysis=deep_analysis["layers"].get("devops", {}),
+                    code_quality_analysis=deep_analysis["layers"].get("code_quality", {}),
+                    basic_analysis=basic_analysis
+                )
+                deep_analysis["synthesis"] = synthesis
+                deep_analysis["analysis_completed"] = True
+            except Exception as e:
+                deep_analysis["errors"].append(f"Synthesis failed: {str(e)}")
+                deep_analysis["synthesis"] = {"error": str(e)}
+
+            return deep_analysis
+
+        except Exception as e:
+            deep_analysis["errors"].append(f"Deep analysis failed: {str(e)}")
+            deep_analysis["analysis_completed"] = False
+            return deep_analysis

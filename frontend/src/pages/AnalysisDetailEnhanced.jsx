@@ -39,6 +39,7 @@ import {
   Security,
   Build,
   Assessment,
+  Layers as LayersIcon,
 } from '@mui/icons-material';
 import {
   RadarChart,
@@ -66,6 +67,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { analysisAPI, repositoryAPI } from '../services/api';
 import NFRAnalysisView from '../components/NFRAnalysisView';
+import DeepAnalysisView from '../components/DeepAnalysisView';
 
 export default function AnalysisDetailEnhanced() {
   const { id } = useParams();
@@ -310,8 +312,9 @@ export default function AnalysisDetailEnhanced() {
         <>
           {/* Tabs for different views */}
           <Paper sx={{ mb: 3 }}>
-            <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+            <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} variant="scrollable" scrollButtons="auto">
               <Tab label="Executive Summary" icon={<TrendingUp />} iconPosition="start" />
+              <Tab label="Deep Analysis" icon={<LayersIcon />} iconPosition="start" />
               <Tab label="NFR Analysis (40+)" icon={<Assessment />} iconPosition="start" />
               <Tab label="Detailed Metrics" icon={<Assessment />} iconPosition="start" />
               <Tab label="AI Insights" icon={<Lightbulb />} iconPosition="start" />
@@ -424,13 +427,18 @@ export default function AnalysisDetailEnhanced() {
             </>
           )}
 
-          {/* Tab 1: NFR Analysis (40+ Quality Attributes) */}
+          {/* Tab 1: Deep Analysis (Multi-Stage Layer Analysis) */}
           {activeTab === 1 && (
+            <DeepAnalysisView deepAnalysis={analysis.detailed_report?.deep_analysis} />
+          )}
+
+          {/* Tab 2: NFR Analysis (40+ Quality Attributes) */}
+          {activeTab === 2 && (
             <NFRAnalysisView nfrAnalysis={analysis.detailed_report?.nfr_analysis} />
           )}
 
-          {/* Tab 2: Detailed Metrics with Drill-Down */}
-          {activeTab === 2 && (
+          {/* Tab 3: Detailed Metrics with Drill-Down */}
+          {activeTab === 3 && (
             <>
               <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
                 🔍 Detailed Quality Metrics
@@ -604,8 +612,8 @@ ${analysis.scalability_score >= 80 ?
             </>
           )}
 
-          {/* Tab 3: AI Insights */}
-          {activeTab === 3 && (
+          {/* Tab 4: AI Insights */}
+          {activeTab === 4 && (
             <>
               <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
                 💡 AI-Powered Recommendations
@@ -693,8 +701,8 @@ ${analysis.scalability_score >= 80 ?
             </>
           )}
 
-          {/* Tab 4: Code Quality Details */}
-          {activeTab === 4 && (
+          {/* Tab 5: Code Quality Details */}
+          {activeTab === 5 && (
             <>
               <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
                 📈 Code Quality Metrics
