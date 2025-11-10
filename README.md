@@ -54,32 +54,61 @@ Archify is a comprehensive code analysis platform that leverages AI and static a
 
 ## 🚀 Quick Start
 
-### Prerequisites
+Choose your preferred deployment method:
 
-- Docker and Docker Compose
-- Git
+### Option A: Docker Compose (Easiest - Recommended)
 
-### Installation
+**Prerequisites:** Docker and Docker Compose
 
-1. **Clone the repository**
 ```bash
+# 1. Clone repository
 git clone https://github.com/yourusername/archify.git
 cd archify
-```
 
-2. **Create environment file**
-```bash
-cp .env.example .env
-# Edit .env with your configurations
-```
+# 2. Start with Docker Compose
+docker compose up -d
 
-3. **Start the application**
-```bash
-make build
+# OR if you have older docker-compose
+docker-compose up -d
+
+# OR using Makefile shortcuts
 make up
 ```
 
-4. **Access the application**
+### Option B: Podman Compose
+
+**Prerequisites:** Podman and Podman Compose
+
+```bash
+# 1. Clone repository
+git clone https://github.com/yourusername/archify.git
+cd archify
+
+# 2. Start with Podman Compose
+podman-compose up -d
+```
+
+### Option C: Local Development (No Docker)
+
+**Prerequisites:** Python 3.11+, Node.js 18+, PostgreSQL 15+
+
+```bash
+# 1. Clone repository
+git clone https://github.com/yourusername/archify.git
+cd archify
+
+# 2. Setup backend
+chmod +x setup-backend.sh
+./setup-backend.sh
+
+# 3. Setup frontend
+chmod +x setup-frontend.sh
+./setup-frontend.sh
+
+# 4. See LOCAL_SETUP.md for detailed instructions
+```
+
+### Access the Application
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
