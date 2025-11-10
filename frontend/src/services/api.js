@@ -44,9 +44,9 @@ export const authAPI = {
 
 // Repository API
 export const repositoryAPI = {
-  list: () => api.get('/repositories'),
+  list: () => api.get('/repositories/'),  // Add trailing slash
   get: (id) => api.get(`/repositories/${id}`),
-  create: (data) => api.post('/repositories', data),
+  create: (data) => api.post('/repositories/', data),  // Add trailing slash
   delete: (id) => api.delete(`/repositories/${id}`),
 };
 
@@ -54,16 +54,16 @@ export const repositoryAPI = {
 export const analysisAPI = {
   list: (repositoryId = null) => {
     const params = repositoryId ? { repository_id: repositoryId } : {};
-    return api.get('/analyses', { params });
+    return api.get('/analyses/', { params });  // Add trailing slash
   },
   get: (id) => api.get(`/analyses/${id}`),
-  create: (data) => api.post('/analyses', data),
+  create: (data) => api.post('/analyses/', data),  // Add trailing slash
   delete: (id) => api.delete(`/analyses/${id}`),
 };
 
 // Settings API
 export const settingsAPI = {
-  list: () => api.get('/settings'),
+  list: () => api.get('/settings/'),  // Add trailing slash
   configureLLM: (config) => api.put('/settings/llm-provider', config),
   configureGit: (config) => api.put('/settings/git-config', config),
   getCurrentLLM: () => api.get('/settings/current-llm-provider'),
