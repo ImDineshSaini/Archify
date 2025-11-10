@@ -5,6 +5,7 @@ Archify is a comprehensive code analysis platform that leverages AI and static a
 ## ✨ Features
 
 - 🔐 **User Authentication** - Secure JWT-based authentication system
+- 🏢 **Multi-Tenancy** - Schema-based isolation for organizations (optional)
 - 📁 **Repository Management** - Support for GitHub and GitLab repositories
 - 🤖 **AI-Powered Analysis** - Multi-LLM support (Claude, OpenAI, Azure OpenAI)
 - 📊 **Comprehensive Metrics** - Code quality, complexity, and architecture analysis
@@ -368,8 +369,26 @@ For issues and questions:
 - Create an issue on GitHub
 - Email: support@archify.io
 
+## 🏢 Multi-Tenancy
+
+Archify supports **schema-based multi-tenancy** for SaaS deployments:
+
+- ✅ Complete data isolation per organization
+- ✅ Automatic schema creation and migration
+- ✅ Tenant-aware routing and middleware
+- ✅ Independent credentials and settings per tenant
+- ✅ Easy tenant provisioning via API or UI
+
+**Enable multi-tenancy:**
+```bash
+ENABLE_MULTI_TENANCY=true
+```
+
+**See [MULTI_TENANCY.md](MULTI_TENANCY.md) for complete guide.**
+
 ## 🗺️ Roadmap
 
+- [x] Multi-tenancy support (schema-based)
 - [ ] Multi-repository comparison
 - [ ] Historical trend analysis
 - [ ] CI/CD integration

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Repositories from './pages/Repositories';
 import AnalysisDetail from './pages/AnalysisDetail';
 import Settings from './pages/Settings';
+import TenantManagement from './pages/TenantManagement';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -33,6 +34,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="repositories" element={<Repositories />} />
           <Route path="analysis/:id" element={<AnalysisDetail />} />
+          <Route path="tenants" element={<TenantManagement />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

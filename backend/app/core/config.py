@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     MAX_REPO_SIZE_MB: int = 500
     CLONE_TIMEOUT_SECONDS: int = 300
 
+    # Multi-tenancy
+    ENABLE_MULTI_TENANCY: bool = False
+
     class Config:
         env_file = ".env"
         case_sensitive = True

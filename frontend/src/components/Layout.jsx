@@ -23,6 +23,7 @@ import {
   Dashboard as DashboardIcon,
   Folder as FolderIcon,
   Settings as SettingsIcon,
+  Business as BusinessIcon,
   AccountCircle,
   Logout,
 } from '@mui/icons-material';
@@ -57,6 +58,7 @@ export default function Layout() {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Repositories', icon: <FolderIcon />, path: '/repositories' },
+    { text: 'Tenants', icon: <BusinessIcon />, path: '/tenants' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
