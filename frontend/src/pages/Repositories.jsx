@@ -21,8 +21,9 @@ import {
   Alert,
   Chip,
   IconButton,
+  CircularProgress,
 } from '@mui/material';
-import { Add, Delete, PlayArrow, Folder } from '@mui/icons-material';
+import { Add, Delete, PlayArrow, Folder, Refresh } from '@mui/icons-material';
 import { repositoryAPI, analysisAPI } from '../services/api';
 
 export default function Repositories() {
@@ -35,6 +36,7 @@ export default function Repositories() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [analyzingRepoId, setAnalyzingRepoId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -98,11 +100,14 @@ export default function Repositories() {
 
   const handleStartAnalysis = async (repositoryId) => {
     try {
+      setAnalyzingRepoId(repositoryId);
       const response = await analysisAPI.create({ repository_id: repositoryId });
+      // Navigate to analysis page immediately to show progress
       navigate(`/analysis/${response.data.id}`);
     } catch (error) {
       console.error('Error starting analysis:', error);
       alert('Failed to start analysis: ' + (error.response?.data?.detail || error.message));
+      setAnalyzingRepoId(null);
     }
   };
 
@@ -178,10 +183,12 @@ export default function Repositories() {
                 <CardActions>
                   <Button
                     size="small"
-                    startIcon={<PlayArrow />}
+                    variant={analyzingRepoId === repo.id ? "contained" : "outlined"}
+                    startIcon={analyzingRepoId === repo.id ? <CircularProgress size={16} /> : <PlayArrow />}
                     onClick={() => handleStartAnalysis(repo.id)}
+                    disabled={analyzingRepoId === repo.id}
                   >
-                    Start Analysis
+                    {analyzingRepoId === repo.id ? 'Starting Analysis...' : 'Start Analysis'}
                   </Button>
                   <Button
                     size="small"

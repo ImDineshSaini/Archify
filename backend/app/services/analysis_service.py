@@ -70,6 +70,18 @@ class AnalysisService:
                 analysis.suggestions = suggestions
                 analysis.detailed_report = analysis_results
 
+                # Update repository with detected language and framework
+                architecture = analysis_results.get("architecture", {})
+                if architecture.get("language") and architecture["language"] != "unknown":
+                    repository.language = architecture["language"]
+                    # Add frameworks to description if detected
+                    if architecture.get("frameworks"):
+                        frameworks_str = ", ".join(architecture["frameworks"])
+                        if repository.description and frameworks_str not in repository.description:
+                            repository.description = f"{repository.description} | Frameworks: {frameworks_str}"
+                        elif not repository.description:
+                            repository.description = f"Frameworks: {frameworks_str}"
+
                 # Extract issues from high complexity functions
                 complexity = analysis_results.get("complexity", {})
                 issues = []

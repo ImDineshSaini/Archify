@@ -7,7 +7,7 @@ import TenantLogin from './pages/TenantLogin';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Repositories from './pages/Repositories';
-import AnalysisDetail from './pages/AnalysisDetail';
+import AnalysisDetailEnhanced from './pages/AnalysisDetailEnhanced';
 import Settings from './pages/Settings';
 import TenantManagement from './pages/TenantManagement';
 import Layout from './components/Layout';
@@ -39,7 +39,7 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="repositories" element={<Repositories />} />
-          <Route path="analysis/:id" element={<AnalysisDetail />} />
+          <Route path="analysis/:id" element={<AnalysisDetailEnhanced />} />
           <Route path="tenants" element={<TenantManagement />} />
           <Route path="settings" element={<Settings />} />
         </Route>
