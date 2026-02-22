@@ -38,8 +38,8 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
+  login: (credentials) => api.post('/v2/auth/login', credentials),
+  register: (userData) => api.post('/v2/auth/register', userData),
 };
 
 // Repository API

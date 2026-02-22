@@ -26,8 +26,8 @@ function App() {
         <Route path="/tenant-login" element={<TenantLogin />} />
         <Route path="/tenant/:tenantSlug/login" element={<TenantLogin />} />
 
-        {/* Standard login (OLD - backwards compatible) */}
-        <Route path="/login" element={<TenantLogin />} />
+        {/* Standard login */}
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
         <Route
