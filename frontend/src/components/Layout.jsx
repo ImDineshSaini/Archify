@@ -56,12 +56,16 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const isAdmin = useSelector((state) => state.auth.isAdmin);
+
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Repositories', icon: <FolderIcon />, path: '/repositories' },
     { text: 'Analysis History', icon: <HistoryIcon />, path: '/analysis-history' },
-    { text: 'Tenants', icon: <BusinessIcon />, path: '/tenants' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    ...(isAdmin ? [
+      { text: 'Tenants', icon: <BusinessIcon />, path: '/tenants' },
+      { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    ] : []),
   ];
 
   const drawer = (

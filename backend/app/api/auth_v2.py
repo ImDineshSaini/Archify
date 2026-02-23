@@ -54,6 +54,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     user_id: int
     username: str
+    is_admin: bool
 
     class Config:
         json_schema_extra = {
@@ -61,7 +62,8 @@ class LoginResponse(BaseModel):
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
                 "user_id": 1,
-                "username": "john_doe"
+                "username": "john_doe",
+                "is_admin": False
             }
         }
 
@@ -195,7 +197,8 @@ def login(
         access_token=result.access_token,
         token_type=result.token_type,
         user_id=result.user_id,
-        username=result.username
+        username=result.username,
+        is_admin=result.is_admin
     )
 
 

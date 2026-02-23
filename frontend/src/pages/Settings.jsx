@@ -41,6 +41,7 @@ export default function Settings() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [currentProvider, setCurrentProvider] = useState('');
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     fetchCurrentProvider();
@@ -50,8 +51,12 @@ export default function Settings() {
     try {
       const response = await settingsAPI.getCurrentLLM();
       setCurrentProvider(response.data.provider);
-    } catch (error) {
-      console.error('Error fetching current provider:', error);
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setError('Access denied. Admin privileges required.');
+      } else {
+        console.error('Error fetching current provider:', err);
+      }
     }
   };
 
@@ -99,7 +104,34 @@ export default function Settings() {
       });
       fetchCurrentProvider();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to configure LLM provider');
+      if (err.response?.status === 403) {
+        setError('Access denied. Admin privileges required.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to configure LLM provider');
+      }
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setError('');
+    setSuccess('');
+    setTesting(true);
+
+    try {
+      const response = await settingsAPI.testLLM();
+      if (response.data.success) {
+        setSuccess(response.data.message);
+      } else {
+        setError(response.data.message);
+      }
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setError('Access denied. Admin privileges required.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to test connection');
+      }
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -112,7 +144,11 @@ export default function Settings() {
       setSuccess(`${gitConfig.source} token configured successfully`);
       setGitConfig({ source: 'github', token: '' });
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to configure Git token');
+      if (err.response?.status === 403) {
+        setError('Access denied. Admin privileges required.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to configure Git token');
+      }
     }
   };
 
@@ -213,6 +249,13 @@ export default function Settings() {
             <Box display="flex" gap={2}>
               <Button variant="contained" onClick={handleSaveLlm}>
                 Save Configuration
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleTestConnection}
+                disabled={testing}
+              >
+                {testing ? 'Testing...' : 'Test Connection'}
               </Button>
             </Box>
 

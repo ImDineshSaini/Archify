@@ -67,6 +67,7 @@ export const settingsAPI = {
   configureLLM: (config) => api.put('/settings/llm-provider', config),
   configureGit: (config) => api.put('/settings/git-config', config),
   getCurrentLLM: () => api.get('/settings/current-llm-provider'),
+  testLLM: () => api.post('/settings/test-llm-connection'),
 };
 
 export default api;

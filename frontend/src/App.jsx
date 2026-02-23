@@ -18,6 +18,11 @@ function PrivateRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" />;
 }
 
+function AdminRoute({ children }) {
+  const isAdmin = useSelector((state) => state.auth.isAdmin);
+  return isAdmin ? children : <Navigate to="/" />;
+}
+
 function App() {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -42,8 +47,8 @@ function App() {
           <Route path="repositories" element={<Repositories />} />
           <Route path="analysis/:id" element={<AnalysisDetailEnhanced />} />
           <Route path="analysis-history" element={<AnalysisHistory />} />
-          <Route path="tenants" element={<TenantManagement />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="tenants" element={<AdminRoute><TenantManagement /></AdminRoute>} />
+          <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
         </Route>
       </Routes>
     </Box>

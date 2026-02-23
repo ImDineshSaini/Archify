@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.dependencies import get_current_admin_user
@@ -141,3 +142,73 @@ def get_current_llm_provider(
     return {
         "provider": provider_setting.value if provider_setting else "not_configured"
     }
+
+
+class TestConnectionResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.post("/test-llm-connection", response_model=TestConnectionResponse)
+def test_llm_connection(
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Test that the configured LLM API key works (admin only)"""
+    provider_setting = db.query(SystemSettings).filter(
+        SystemSettings.key == "llm_provider"
+    ).first()
+
+    if not provider_setting:
+        return TestConnectionResponse(
+            success=False,
+            message="No LLM provider configured. Please configure one first."
+        )
+
+    provider = provider_setting.value
+    api_key_setting = db.query(SystemSettings).filter(
+        SystemSettings.key == f"{provider}_api_key"
+    ).first()
+
+    if not api_key_setting:
+        return TestConnectionResponse(
+            success=False,
+            message=f"No API key found for provider '{provider}'."
+        )
+
+    # Build kwargs for Azure
+    kwargs = {}
+    if provider == "azure":
+        endpoint_setting = db.query(SystemSettings).filter(
+            SystemSettings.key == "azure_endpoint"
+        ).first()
+        deployment_setting = db.query(SystemSettings).filter(
+            SystemSettings.key == "azure_deployment_name"
+        ).first()
+        if not endpoint_setting or not deployment_setting:
+            return TestConnectionResponse(
+                success=False,
+                message="Azure requires endpoint and deployment name to be configured."
+            )
+        kwargs["endpoint"] = endpoint_setting.value
+        kwargs["deployment_name"] = deployment_setting.value
+
+    try:
+        from app.services.llm_service import LLMService
+        service = LLMService(
+            provider=provider,
+            api_key=api_key_setting.value,
+            **kwargs
+        )
+        # Make a minimal call to verify the key works
+        from langchain.schema import HumanMessage
+        response = service.client.invoke([HumanMessage(content="Reply with OK")])
+        return TestConnectionResponse(
+            success=True,
+            message=f"Connection to {provider} successful."
+        )
+    except Exception as e:
+        return TestConnectionResponse(
+            success=False,
+            message=f"Connection failed: {str(e)}"
+        )

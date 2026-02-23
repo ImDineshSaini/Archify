@@ -33,7 +33,11 @@ export default function Login() {
       const response = await authAPI.login(formData);
       dispatch(loginSuccess({
         token: response.data.access_token,
-        user: { username: formData.username }
+        user: {
+          username: response.data.username,
+          user_id: response.data.user_id,
+          is_admin: response.data.is_admin,
+        }
       }));
       navigate('/');
     } catch (err) {
