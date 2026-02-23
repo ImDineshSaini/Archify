@@ -1,13 +1,16 @@
+import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from app.models.analysis import Analysis, AnalysisStatus
-from app.models.repository import Repository
 from app.repositories.settings_repository import SettingsRepository
 from app.repositories.repository_repository import RepositoryRepository
 from app.services.code_analyzer import CodeAnalyzer
 from app.services.llm_service import LLMService
 from app.services.repo_service import RepoService
+
+logger = logging.getLogger(__name__)
 
 
 class AnalysisService:
@@ -52,6 +55,7 @@ class AnalysisService:
                         llm_service=llm_service,
                         directory_tree=analysis_results["directory_tree"],
                         basic_analysis=analysis_results,
+                        repo_path=repo_path,
                     )
                     analysis_results["deep_analysis"] = deep_analysis
 
@@ -147,8 +151,9 @@ class AnalysisService:
         llm_service: LLMService,
         directory_tree: str,
         basic_analysis: Dict[str, Any],
+        repo_path: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Run multi-stage deep analysis with layer-by-layer examination."""
+        """Run multi-stage deep analysis with parallel layer execution and RAG."""
         deep_analysis = {
             "layers": {},
             "synthesis": {},
@@ -156,22 +161,44 @@ class AnalysisService:
             "errors": [],
         }
 
-        layer_methods = [
-            ("security", llm_service.analyze_security_layer),
-            ("performance", llm_service.analyze_performance_layer),
-            ("testing", llm_service.analyze_testing_layer),
-            ("devops", llm_service.analyze_devops_layer),
-            ("code_quality", llm_service.analyze_code_quality_layer),
-        ]
+        # Phase 2: Build ephemeral vector store for RAG
+        vector_store = None
+        if repo_path:
+            try:
+                from app.services.llm.code_embedder import embed_repository
+                vector_store = embed_repository(repo_path)
+                if vector_store:
+                    logger.info("RAG vector store created for %s", repo_path)
+            except Exception as e:
+                logger.warning("RAG embedding failed (continuing without): %s", e)
+
+        # Phase 3: Run all 5 layers in parallel via ThreadPoolExecutor
+        layer_methods = {
+            "security": llm_service.analyze_security_layer,
+            "performance": llm_service.analyze_performance_layer,
+            "testing": llm_service.analyze_testing_layer,
+            "devops": llm_service.analyze_devops_layer,
+            "code_quality": llm_service.analyze_code_quality_layer,
+        }
 
         try:
-            for layer_name, method in layer_methods:
-                try:
-                    deep_analysis["layers"][layer_name] = method(directory_tree, basic_analysis)
-                except Exception as e:
-                    deep_analysis["errors"].append(f"{layer_name} analysis failed: {str(e)}")
-                    deep_analysis["layers"][layer_name] = {"error": str(e)}
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {
+                    executor.submit(
+                        method, directory_tree, basic_analysis, vector_store
+                    ): layer_name
+                    for layer_name, method in layer_methods.items()
+                }
 
+                for future in as_completed(futures):
+                    layer_name = futures[future]
+                    try:
+                        deep_analysis["layers"][layer_name] = future.result()
+                    except Exception as e:
+                        deep_analysis["errors"].append(f"{layer_name} analysis failed: {str(e)}")
+                        deep_analysis["layers"][layer_name] = {"error": str(e)}
+
+            # Synthesis runs after all layers complete
             try:
                 synthesis = llm_service.synthesize_deep_analysis(
                     security_analysis=deep_analysis["layers"].get("security", {}),

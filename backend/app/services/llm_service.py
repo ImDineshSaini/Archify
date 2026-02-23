@@ -67,32 +67,37 @@ class LLMService:
     ) -> str:
         return generate_improvement_roadmap(self.client, current_scores, target_scores)
 
-    # --- deep analysis layers ---
+    # --- deep analysis layers (with optional RAG vector_store) ---
 
     def analyze_security_layer(
-        self, directory_tree: str, basic_analysis: Dict[str, Any]
+        self, directory_tree: str, basic_analysis: Dict[str, Any],
+        vector_store=None,
     ) -> Dict[str, Any]:
-        return SecurityAnalyzer().analyze(self.client, directory_tree, basic_analysis)
+        return SecurityAnalyzer().analyze(self.client, directory_tree, basic_analysis, vector_store)
 
     def analyze_performance_layer(
-        self, directory_tree: str, basic_analysis: Dict[str, Any]
+        self, directory_tree: str, basic_analysis: Dict[str, Any],
+        vector_store=None,
     ) -> Dict[str, Any]:
-        return PerformanceAnalyzer().analyze(self.client, directory_tree, basic_analysis)
+        return PerformanceAnalyzer().analyze(self.client, directory_tree, basic_analysis, vector_store)
 
     def analyze_testing_layer(
-        self, directory_tree: str, basic_analysis: Dict[str, Any]
+        self, directory_tree: str, basic_analysis: Dict[str, Any],
+        vector_store=None,
     ) -> Dict[str, Any]:
-        return TestingAnalyzer().analyze(self.client, directory_tree, basic_analysis)
+        return TestingAnalyzer().analyze(self.client, directory_tree, basic_analysis, vector_store)
 
     def analyze_devops_layer(
-        self, directory_tree: str, basic_analysis: Dict[str, Any]
+        self, directory_tree: str, basic_analysis: Dict[str, Any],
+        vector_store=None,
     ) -> Dict[str, Any]:
-        return DevOpsAnalyzer().analyze(self.client, directory_tree, basic_analysis)
+        return DevOpsAnalyzer().analyze(self.client, directory_tree, basic_analysis, vector_store)
 
     def analyze_code_quality_layer(
-        self, directory_tree: str, basic_analysis: Dict[str, Any]
+        self, directory_tree: str, basic_analysis: Dict[str, Any],
+        vector_store=None,
     ) -> Dict[str, Any]:
-        return CodeQualityAnalyzer().analyze(self.client, directory_tree, basic_analysis)
+        return CodeQualityAnalyzer().analyze(self.client, directory_tree, basic_analysis, vector_store)
 
     def synthesize_deep_analysis(
         self,

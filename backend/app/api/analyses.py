@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.dependencies import get_current_user
@@ -102,3 +103,100 @@ def delete_analysis(
     analysis_repo.delete(analysis)
 
     return None
+
+
+@router.get("/{analysis_id}/pdf")
+def download_analysis_pdf(
+    analysis_id: int,
+    current_user: User = Depends(get_current_user),
+    analysis_repo: AnalysisRepository = Depends(_get_analysis_repo),
+    repo_repo: RepositoryRepository = Depends(_get_repository_repo),
+):
+    """Download analysis report as PDF"""
+    analysis = analysis_repo.find_by_id_and_user(analysis_id, current_user.id)
+
+    if not analysis:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis not found"
+        )
+
+    repo = repo_repo.find_by_id(analysis.repository_id)
+    repo_name = repo.name if repo else "Unknown Repository"
+    repo_url = repo.url if repo else ""
+
+    from app.services.pdf_report import generate_analysis_pdf
+
+    analysis_data = {
+        "overall_score": analysis.overall_score,
+        "maintainability_score": analysis.maintainability_score,
+        "reliability_score": analysis.reliability_score,
+        "scalability_score": analysis.scalability_score,
+        "security_score": analysis.security_score,
+        "detailed_report": analysis.detailed_report,
+        "code_metrics": analysis.code_metrics,
+        "suggestions": analysis.suggestions,
+        "issues": analysis.issues,
+        "analysis_duration": analysis.analysis_duration,
+    }
+
+    pdf_bytes = generate_analysis_pdf(analysis_data, repo_name, repo_url=repo_url)
+
+    filename = f"archify-report-{repo_name.replace(' ', '_')}-{analysis_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+from pydantic import BaseModel as _BaseModel
+
+
+class IssueStatusUpdate(_BaseModel):
+    layer: str
+    issue_index: int
+    status: str  # "open", "false_positive", "accepted", "resolved"
+
+
+@router.patch("/{analysis_id}/issue-status")
+def update_issue_status(
+    analysis_id: int,
+    update: IssueStatusUpdate,
+    current_user: User = Depends(get_current_user),
+    analysis_repo: AnalysisRepository = Depends(_get_analysis_repo),
+    db: Session = Depends(get_db),
+):
+    """Update the triage status of a specific issue (e.g. mark as false positive)"""
+    analysis = analysis_repo.find_by_id_and_user(analysis_id, current_user.id)
+
+    if not analysis:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis not found"
+        )
+
+    valid_statuses = {"open", "false_positive", "accepted", "resolved"}
+    new_status = update.status
+    if new_status not in valid_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+        )
+
+    # Store issue statuses in detailed_report.issue_statuses
+    detailed_report = analysis.detailed_report or {}
+    issue_statuses = detailed_report.get("issue_statuses", {})
+
+    status_key = f"{update.layer}:{update.issue_index}"
+    issue_statuses[status_key] = new_status
+
+    detailed_report["issue_statuses"] = issue_statuses
+    analysis.detailed_report = detailed_report
+
+    # Force SQLAlchemy to detect JSON mutation
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(analysis, "detailed_report")
+    db.commit()
+
+    return {"message": "Issue status updated", "key": status_key, "status": new_status}

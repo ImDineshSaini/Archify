@@ -59,6 +59,8 @@ export const analysisAPI = {
   get: (id) => api.get(`/analyses/${id}`),
   create: (data) => api.post('/analyses/', data),  // Add trailing slash
   delete: (id) => api.delete(`/analyses/${id}`),
+  downloadPdf: (id) => api.get(`/analyses/${id}/pdf`, { responseType: 'blob' }),
+  updateIssueStatus: (id, data) => api.patch(`/analyses/${id}/issue-status`, data),
 };
 
 // Settings API

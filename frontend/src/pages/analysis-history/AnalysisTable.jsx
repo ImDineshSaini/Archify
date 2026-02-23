@@ -24,6 +24,7 @@ import {
   CheckCircle,
   Error,
   HourglassEmpty,
+  PictureAsPdf,
 } from '@mui/icons-material';
 import { getStatusColor, getScoreColor } from '../../utils/statusColors';
 
@@ -48,6 +49,7 @@ function AnalysisTable({
   onRowsPerPageChange,
   onView,
   onDelete,
+  onDownloadPdf,
   anchorEl,
   selectedAnalysis,
   onMenuOpen,
@@ -110,7 +112,7 @@ function AnalysisTable({
                       {analysis.overall_score != null ? (
                         <Chip
                           label={`${analysis.overall_score.toFixed(0)}/100`}
-                          color={getScoreColor(analysis.overall_score)}
+                          sx={{ bgcolor: getScoreColor(analysis.overall_score), color: '#fff' }}
                           size="small"
                         />
                       ) : (
@@ -131,6 +133,13 @@ function AnalysisTable({
                           <Visibility />
                         </IconButton>
                       </Tooltip>
+                      {analysis.status === 'completed' && onDownloadPdf && (
+                        <Tooltip title="Download PDF Report">
+                          <IconButton size="small" onClick={() => onDownloadPdf(analysis)}>
+                            <PictureAsPdf color="error" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       <Tooltip title="More Actions">
                         <IconButton
                           size="small"
@@ -166,6 +175,14 @@ function AnalysisTable({
           </ListItemIcon>
           <ListItemText>View Details</ListItemText>
         </MenuItem>
+        {selectedAnalysis?.status === 'completed' && onDownloadPdf && (
+          <MenuItem onClick={() => { onDownloadPdf(selectedAnalysis); onMenuClose(); }}>
+            <ListItemIcon>
+              <PictureAsPdf fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText>Download PDF Report</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem onClick={() => onDelete(selectedAnalysis)}>
           <ListItemIcon>
             <Delete fontSize="small" color="error" />

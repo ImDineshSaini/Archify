@@ -138,7 +138,7 @@ def test_llm_connection(
             api_key=api_key_setting.value,
             **kwargs
         )
-        from langchain.schema import HumanMessage
+        from langchain_core.messages import HumanMessage
         response = service.client.invoke([HumanMessage(content="Reply with OK")])
         return TestConnectionResponse(
             success=True,

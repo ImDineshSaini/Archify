@@ -64,6 +64,25 @@ export default function AnalysisHistory() {
     handleMenuClose();
   };
 
+  const handleDownloadPdf = async (analysis) => {
+    try {
+      const response = await analysisAPI.downloadPdf(analysis.id);
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const repo = repositories[analysis.repository_id];
+      link.download = `archify-report-${repo?.name || 'analysis'}-${analysis.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    }
+    handleMenuClose();
+  };
+
   const filteredAnalyses = analyses.filter((analysis) => {
     const matchesStatus = filterStatus === 'all' || analysis.status === filterStatus;
     const matchesRepo = filterRepo === 'all' || analysis.repository_id === parseInt(filterRepo);
@@ -106,6 +125,7 @@ export default function AnalysisHistory() {
         onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
         onView={handleView}
         onDelete={handleDelete}
+        onDownloadPdf={handleDownloadPdf}
         anchorEl={anchorEl}
         selectedAnalysis={selectedAnalysis}
         onMenuOpen={handleMenuOpen}

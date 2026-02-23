@@ -22,6 +22,7 @@ import {
   Layers as LayersIcon,
 } from '@mui/icons-material';
 import { analysisAPI, repositoryAPI } from '../services/api';
+import { Snackbar } from '@mui/material';
 import NFRAnalysisView from '../components/NFRAnalysisView';
 import DeepAnalysisView from '../components/DeepAnalysisView';
 import { getStatusColor, getScoreGrade } from '../utils/statusColors';
@@ -39,6 +40,7 @@ export default function AnalysisDetailEnhanced() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   const [expandedMetric, setExpandedMetric] = useState(null);
+  const [snackbar, setSnackbar] = useState(null);
 
   useEffect(() => {
     fetchAnalysis();
@@ -65,6 +67,26 @@ export default function AnalysisDetailEnhanced() {
     }
   };
 
+  const handleIssueStatusChange = async (layer, issueIndex, status) => {
+    try {
+      await analysisAPI.updateIssueStatus(id, { layer, issue_index: issueIndex, status });
+      // Update local state to reflect the change immediately
+      setAnalysis((prev) => {
+        const updated = { ...prev };
+        const report = { ...(updated.detailed_report || {}) };
+        const statuses = { ...(report.deep_analysis?.issue_statuses || {}) };
+        statuses[`${layer}:${issueIndex}`] = status;
+        report.deep_analysis = { ...(report.deep_analysis || {}), issue_statuses: statuses };
+        updated.detailed_report = report;
+        return updated;
+      });
+      setSnackbar(`Issue marked as ${status.replace('_', ' ')}`);
+    } catch (error) {
+      console.error('Error updating issue status:', error);
+      setSnackbar('Failed to update issue status');
+    }
+  };
+
   if (loading || !analysis) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -75,46 +97,37 @@ export default function AnalysisDetailEnhanced() {
 
   return (
     <Container maxWidth="xl">
-      {/* Header */}
-      <Box display="flex" alignItems="center" mb={3}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mr: 2 }}>
+      {/* Compact Header */}
+      <Box display="flex" alignItems="center" mb={1.5} flexWrap="wrap" gap={1}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} size="small">
           Back
         </Button>
-        <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          Code Analysis Report
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {repository?.name || 'Analysis Report'}
         </Typography>
+        {repository?.source && <Chip label={repository.source} size="small" variant="outlined" />}
+        {repository?.language && <Chip label={repository.language} size="small" variant="outlined" />}
         <Chip
           label={getScoreGrade(analysis.overall_score || 0)}
           color={getStatusColor(analysis.status)}
-          sx={{ fontSize: '1.2rem', px: 2, py: 3, mr: 2 }}
+          sx={{ fontWeight: 700 }}
         />
-        <Button startIcon={<Refresh />} onClick={() => fetchAnalysis()} variant="outlined">
+        <Box sx={{ flexGrow: 1 }} />
+        <Button startIcon={<Refresh />} onClick={() => fetchAnalysis()} variant="outlined" size="small">
           Refresh
         </Button>
       </Box>
 
-      {/* Repository Info Banner */}
-      {repository && (
-        <Alert severity="info" sx={{ mb: 3 }} icon={<Assessment />}>
-          <Typography variant="h6">{repository.name}</Typography>
-          <Typography variant="body2">{repository.description || 'No description'}</Typography>
-          <Box mt={1}>
-            <Chip label={repository.source} size="small" sx={{ mr: 1 }} />
-            {repository.language && <Chip label={repository.language} size="small" />}
-          </Box>
-        </Alert>
-      )}
-
       {/* Status Banners */}
       {analysis.status === 'running' && (
-        <Alert severity="info" sx={{ mb: 3 }}>
+        <Alert severity="info" sx={{ mb: 1.5 }}>
           <Typography variant="body1">Analysis in progress...</Typography>
           <CircularProgress size={20} sx={{ ml: 2 }} />
         </Alert>
       )}
 
       {analysis.status === 'failed' && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 1.5 }}>
           {analysis.error_message || 'Analysis failed'}
         </Alert>
       )}
@@ -122,7 +135,7 @@ export default function AnalysisDetailEnhanced() {
       {analysis.status === 'completed' && (
         <>
           {/* Tab Bar */}
-          <Paper sx={{ mb: 3 }}>
+          <Paper sx={{ mb: 1.5 }}>
             <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} variant="scrollable" scrollButtons="auto">
               <Tab label="Executive Summary" icon={<TrendingUp />} iconPosition="start" />
               <Tab label="Deep Analysis" icon={<LayersIcon />} iconPosition="start" />
@@ -135,7 +148,14 @@ export default function AnalysisDetailEnhanced() {
 
           {/* Tab Content */}
           {activeTab === 0 && <ExecutiveSummaryTab analysis={analysis} />}
-          {activeTab === 1 && <DeepAnalysisView deepAnalysis={analysis.detailed_report?.deep_analysis} />}
+          {activeTab === 1 && (
+            <DeepAnalysisView
+              deepAnalysis={analysis.detailed_report?.deep_analysis}
+              analysisId={analysis.id}
+              repoUrl={repository?.url}
+              onIssueStatusChange={handleIssueStatusChange}
+            />
+          )}
           {activeTab === 2 && <NFRAnalysisView nfrAnalysis={analysis.detailed_report?.nfr_analysis} />}
           {activeTab === 3 && (
             <DetailedMetricsTab
@@ -148,6 +168,14 @@ export default function AnalysisDetailEnhanced() {
           {activeTab === 5 && <CodeQualityTab analysis={analysis} />}
         </>
       )}
+
+      <Snackbar
+        open={Boolean(snackbar)}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar(null)}
+        message={snackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Container>
   );
 }

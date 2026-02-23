@@ -52,7 +52,7 @@ const markdownSx = {
  * Renders the structured (parsed) synthesis data: executive summary,
  * quick wins, and prioritised issue accordions.
  */
-const ParsedSynthesis = ({ data }) => {
+const ParsedSynthesis = ({ data, issueStatuses, repoUrl, onIssueStatusChange }) => {
   const [expandedPanel, setExpandedPanel] = useState(false);
 
   const toggle = (panel) =>
@@ -161,7 +161,17 @@ const ParsedSynthesis = ({ data }) => {
           </AccordionSummary>
           <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
             {data.critical_issues.map((issue, index) => (
-              <IssueCard key={index} issue={issue} index={index} />
+              <IssueCard
+                key={index}
+                issue={issue}
+                index={index}
+                repoUrl={repoUrl}
+                issueStatus={issueStatuses?.[`synthesis_critical:${index}`]}
+                onStatusChange={onIssueStatusChange
+                  ? (status) => onIssueStatusChange('synthesis_critical', index, status)
+                  : undefined
+                }
+              />
             ))}
           </AccordionDetails>
         </Accordion>
@@ -206,7 +216,17 @@ const ParsedSynthesis = ({ data }) => {
           </AccordionSummary>
           <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
             {data.high_priority.map((issue, index) => (
-              <IssueCard key={index} issue={issue} index={index} />
+              <IssueCard
+                key={index}
+                issue={issue}
+                index={index}
+                repoUrl={repoUrl}
+                issueStatus={issueStatuses?.[`synthesis_high:${index}`]}
+                onStatusChange={onIssueStatusChange
+                  ? (status) => onIssueStatusChange('synthesis_high', index, status)
+                  : undefined
+                }
+              />
             ))}
           </AccordionDetails>
         </Accordion>
@@ -251,7 +271,17 @@ const ParsedSynthesis = ({ data }) => {
           </AccordionSummary>
           <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
             {data.medium_priority.map((issue, index) => (
-              <IssueCard key={index} issue={issue} index={index} />
+              <IssueCard
+                key={index}
+                issue={issue}
+                index={index}
+                repoUrl={repoUrl}
+                issueStatus={issueStatuses?.[`synthesis_medium:${index}`]}
+                onStatusChange={onIssueStatusChange
+                  ? (status) => onIssueStatusChange('synthesis_medium', index, status)
+                  : undefined
+                }
+              />
             ))}
           </AccordionDetails>
         </Accordion>
@@ -296,7 +326,17 @@ const ParsedSynthesis = ({ data }) => {
           </AccordionSummary>
           <AccordionDetails sx={{ bgcolor: '#fafafa', p: 3 }}>
             {data.low_priority.map((issue, index) => (
-              <IssueCard key={index} issue={issue} index={index} />
+              <IssueCard
+                key={index}
+                issue={issue}
+                index={index}
+                repoUrl={repoUrl}
+                issueStatus={issueStatuses?.[`synthesis_low:${index}`]}
+                onStatusChange={onIssueStatusChange
+                  ? (status) => onIssueStatusChange('synthesis_low', index, status)
+                  : undefined
+                }
+              />
             ))}
           </AccordionDetails>
         </Accordion>
@@ -318,7 +358,7 @@ const ParsedSynthesis = ({ data }) => {
  * SynthesisSection -- top-level component for the "Synthesis Report" tab.
  * Handles both structured and raw/unparsed synthesis data.
  */
-const SynthesisSection = ({ synthesis }) => {
+const SynthesisSection = ({ synthesis, issueStatuses, repoUrl, onIssueStatusChange }) => {
   if (!synthesis || synthesis.error) {
     return (
       <Alert severity="warning">
@@ -329,26 +369,61 @@ const SynthesisSection = ({ synthesis }) => {
     );
   }
 
-  // Check if we already have structured data
-  const hasStructuredData =
-    synthesis.executive_summary ||
-    synthesis.critical_issues?.length > 0 ||
-    synthesis.high_priority?.length > 0 ||
-    synthesis.medium_priority?.length > 0 ||
-    synthesis.low_priority?.length > 0 ||
-    synthesis.quick_wins?.length > 0;
+  // Detect raw JSON/markdown mistakenly stored as a string field
+  const looksLikeRawJson = (str) =>
+    typeof str === 'string' &&
+    (str.trimStart().startsWith('{') || str.trimStart().startsWith('```'));
 
-  if (hasStructuredData) {
-    return <ParsedSynthesis data={synthesis} />;
+  // If executive_summary contains raw LLM response, try to recover structured data
+  let data = synthesis;
+  if (data.executive_summary && looksLikeRawJson(data.executive_summary)) {
+    const raw = data.executive_summary;
+    // Strip markdown code fences (closing fence may be missing if truncated)
+    let text = raw;
+    const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)(?:\n?\s*```|$)/);
+    if (fenceMatch) text = fenceMatch[1];
+
+    const startIdx = text.indexOf('{');
+    if (startIdx !== -1) {
+      try {
+        const parsed = JSON.parse(text.slice(startIdx));
+        if (parsed && typeof parsed === 'object' && parsed.executive_summary) {
+          data = parsed;
+        }
+      } catch {
+        // JSON likely truncated -- extract the executive_summary value via regex
+        const match = text.match(/"executive_summary"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (match) {
+          try {
+            data = { ...data, executive_summary: JSON.parse('"' + match[1] + '"') };
+          } catch {
+            // leave as-is
+          }
+        }
+      }
+    }
   }
 
-  // Otherwise, try to parse from raw_analysis or raw content
+  // Check if we have structured data (using the normalised `data`)
+  const hasStructuredData =
+    (data.executive_summary && !looksLikeRawJson(data.executive_summary)) ||
+    data.critical_issues?.length > 0 ||
+    data.high_priority?.length > 0 ||
+    data.medium_priority?.length > 0 ||
+    data.low_priority?.length > 0 ||
+    data.quick_wins?.length > 0;
+
+  if (hasStructuredData) {
+    return <ParsedSynthesis data={data} issueStatuses={issueStatuses} repoUrl={repoUrl} onIssueStatusChange={onIssueStatusChange} />;
+  }
+
+  // Fallback: try to parse from raw_analysis or raw content
   let parsedData = null;
   const rawContent =
-    synthesis.raw_analysis ||
-    (typeof synthesis === 'string'
-      ? synthesis
-      : JSON.stringify(synthesis, null, 2));
+    data.raw_analysis ||
+    (typeof data === 'string'
+      ? data
+      : JSON.stringify(data, null, 2));
 
   try {
     parsedData = JSON.parse(rawContent);
@@ -365,14 +440,20 @@ const SynthesisSection = ({ synthesis }) => {
 
   if (
     parsedData &&
-    (parsedData.executive_summary ||
-      parsedData.critical_issues ||
-      parsedData.high_priority)
+    ((parsedData.executive_summary && !looksLikeRawJson(parsedData.executive_summary)) ||
+      parsedData.critical_issues?.length > 0 ||
+      parsedData.high_priority?.length > 0)
   ) {
-    return <ParsedSynthesis data={parsedData} />;
+    return <ParsedSynthesis data={parsedData} issueStatuses={issueStatuses} repoUrl={repoUrl} onIssueStatusChange={onIssueStatusChange} />;
   }
 
-  // Markdown fallback
+  // Markdown fallback -- prefer the original raw LLM text when available
+  const markdownContent =
+    data.raw_analysis ||
+    (synthesis.executive_summary && looksLikeRawJson(synthesis.executive_summary)
+      ? synthesis.executive_summary
+      : rawContent);
+
   return (
     <Paper sx={{ p: 3 }}>
       <Alert severity="warning" sx={{ mb: 2 }}>
@@ -383,7 +464,7 @@ const SynthesisSection = ({ synthesis }) => {
       </Alert>
       <Box sx={markdownSx}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {rawContent}
+          {markdownContent}
         </ReactMarkdown>
       </Box>
     </Paper>

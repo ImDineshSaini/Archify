@@ -1,12 +1,12 @@
 # FastAPI and web server
-fastapi==0.104.1
+fastapi>=0.104.1,<1.0
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt<4.2.0  # Pin to compatible version (bcrypt 5.0+ has issues with passlib)
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.7.4,<3.0  # langchain 0.3 requires >=2.7.4
+pydantic-settings>=2.1.0,<3.0
 
 # Database
 sqlalchemy==2.0.23
@@ -21,15 +21,17 @@ celery==5.3.4
 structlog==23.2.0
 
 # AI and LLM
-langchain==0.1.0
-langchain-anthropic==0.1.1
-langchain-openai==0.0.2
-langchain-community==0.0.10
-anthropic==0.25.1
-openai==1.6.1
-tiktoken==0.5.2
-faiss-cpu==1.7.4
-chromadb==0.4.18
+langchain>=0.3.0,<0.4
+langchain-core>=0.3.0,<0.4
+langchain-anthropic>=0.3.0,<0.4
+langchain-openai>=0.3.0,<0.4
+langchain-community>=0.3.0,<0.4
+langchain-text-splitters>=0.3.0,<0.4
+anthropic>=0.25.1
+openai>=1.6.1
+tiktoken>=0.5.2
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.0
 
 # Code analysis
 radon==6.0.1
@@ -43,6 +45,9 @@ bandit==1.7.5
 httpx==0.25.2
 aiohttp==3.9.1
 
+# PDF Report Generation
+reportlab>=4.0.0
+
 # Utilities
 python-dotenv==1.0.0
 tenacity==8.2.3
@@ -54,7 +59,6 @@ pytest-asyncio==0.21.1
 pytest-cov==4.1.0
 pytest-mock==3.12.0
 faker==20.1.0
-httpx==0.25.2  # Already listed above, for TestClient
 slowapi==0.1.9  # Rate limiting
 prometheus-client==0.19.0  # Metrics
 email-validator==2.1.0  # Email validation for pydantic

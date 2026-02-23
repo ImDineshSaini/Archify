@@ -1,8 +1,11 @@
 """Factory for creating LLM clients."""
 
+import logging
 from typing import Optional
+
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
+
 from app.core.constants import (
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_OPENAI_MODEL,
@@ -10,6 +13,15 @@ from app.core.constants import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_AZURE_API_VERSION,
 )
+
+logger = logging.getLogger(__name__)
+
+# Initialize LLM response cache on module import
+try:
+    from app.services.llm.cache_utils import setup_llm_cache
+    setup_llm_cache()
+except Exception as e:
+    logger.debug("LLM cache setup skipped: %s", e)
 
 
 def create_llm_client(

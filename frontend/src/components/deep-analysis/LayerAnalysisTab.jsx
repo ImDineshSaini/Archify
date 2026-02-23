@@ -91,7 +91,7 @@ const pickIssues = (data) =>
  * LayerAnalysisTab -- renders the analysis for a single architecture layer
  * (security, performance, testing, devops, code_quality).
  */
-const LayerAnalysisTab = ({ layerName, layerData }) => {
+const LayerAnalysisTab = ({ layerName, layerData, issueStatuses, repoUrl, onIssueStatusChange }) => {
   if (!layerData || layerData.error) {
     return (
       <Alert severity="warning">
@@ -114,7 +114,17 @@ const LayerAnalysisTab = ({ layerName, layerData }) => {
             {issues.length} {getLayerHeading(layerName)}
           </Typography>
           {issues.map((issue, index) => (
-            <IssueCard key={index} issue={issue} index={index} />
+            <IssueCard
+              key={index}
+              issue={issue}
+              index={index}
+              repoUrl={repoUrl}
+              issueStatus={issueStatuses?.[`${layerName}:${index}`]}
+              onStatusChange={onIssueStatusChange
+                ? (status) => onIssueStatusChange(layerName, index, status)
+                : undefined
+              }
+            />
           ))}
         </Box>
       ) : (
