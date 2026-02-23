@@ -16,6 +16,7 @@ import {
   Divider,
 } from '@mui/material';
 import { settingsAPI } from '../services/api';
+import useApiCall from '../hooks/useApiCall';
 
 function TabPanel({ children, value, index }) {
   return (
@@ -38,32 +39,26 @@ export default function Settings() {
     source: 'github',
     token: '',
   });
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
   const [currentProvider, setCurrentProvider] = useState('');
   const [testing, setTesting] = useState(false);
+  const { loading, error, success, execute, clearMessages, setError, setSuccess } = useApiCall();
 
   useEffect(() => {
     fetchCurrentProvider();
   }, []);
 
   const fetchCurrentProvider = async () => {
-    try {
-      const response = await settingsAPI.getCurrentLLM();
-      setCurrentProvider(response.data.provider);
-    } catch (err) {
-      if (err.response?.status === 403) {
-        setError('Access denied. Admin privileges required.');
-      } else {
-        console.error('Error fetching current provider:', err);
-      }
-    }
+    await execute(() => settingsAPI.getCurrentLLM(), {
+      onSuccess: (res) => {
+        setCurrentProvider(res.data.provider);
+        clearMessages();
+      },
+    });
   };
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
-    setSuccess('');
-    setError('');
+    clearMessages();
   };
 
   const handleLlmChange = (e) => {
@@ -75,47 +70,32 @@ export default function Settings() {
   };
 
   const handleSaveLlm = async () => {
-    setError('');
-    setSuccess('');
+    const configToSubmit = {
+      provider: llmConfig.provider,
+      api_key: llmConfig.api_key,
+    };
 
-    try {
-      const configToSubmit = {
-        provider: llmConfig.provider,
-        api_key: llmConfig.api_key,
-      };
-
-      if (llmConfig.provider === 'azure') {
-        configToSubmit.endpoint = llmConfig.endpoint;
-        configToSubmit.deployment_name = llmConfig.deployment_name;
-      }
-
-      if (llmConfig.model) {
-        configToSubmit.model = llmConfig.model;
-      }
-
-      await settingsAPI.configureLLM(configToSubmit);
-      setSuccess('LLM provider configured successfully');
-      setLlmConfig({
-        provider: 'claude',
-        api_key: '',
-        model: '',
-        endpoint: '',
-        deployment_name: '',
-      });
-      fetchCurrentProvider();
-    } catch (err) {
-      if (err.response?.status === 403) {
-        setError('Access denied. Admin privileges required.');
-      } else {
-        setError(err.response?.data?.detail || 'Failed to configure LLM provider');
-      }
+    if (llmConfig.provider === 'azure') {
+      configToSubmit.endpoint = llmConfig.endpoint;
+      configToSubmit.deployment_name = llmConfig.deployment_name;
     }
+
+    if (llmConfig.model) {
+      configToSubmit.model = llmConfig.model;
+    }
+
+    await execute(() => settingsAPI.configureLLM(configToSubmit), {
+      successMessage: 'LLM provider configured successfully',
+      onSuccess: () => {
+        setLlmConfig({ provider: 'claude', api_key: '', model: '', endpoint: '', deployment_name: '' });
+        fetchCurrentProvider();
+      },
+    });
   };
 
   const handleTestConnection = async () => {
-    setError('');
-    setSuccess('');
     setTesting(true);
+    clearMessages();
 
     try {
       const response = await settingsAPI.testLLM();
@@ -125,31 +105,21 @@ export default function Settings() {
         setError(response.data.message);
       }
     } catch (err) {
-      if (err.response?.status === 403) {
-        setError('Access denied. Admin privileges required.');
-      } else {
-        setError(err.response?.data?.detail || 'Failed to test connection');
-      }
+      const message =
+        err.response?.status === 403
+          ? 'Access denied. Admin privileges required.'
+          : err.response?.data?.detail || 'Failed to test connection';
+      setError(message);
     } finally {
       setTesting(false);
     }
   };
 
   const handleSaveGit = async () => {
-    setError('');
-    setSuccess('');
-
-    try {
-      await settingsAPI.configureGit(gitConfig);
-      setSuccess(`${gitConfig.source} token configured successfully`);
-      setGitConfig({ source: 'github', token: '' });
-    } catch (err) {
-      if (err.response?.status === 403) {
-        setError('Access denied. Admin privileges required.');
-      } else {
-        setError(err.response?.data?.detail || 'Failed to configure Git token');
-      }
-    }
+    await execute(() => settingsAPI.configureGit(gitConfig), {
+      successMessage: `${gitConfig.source} token configured successfully`,
+      onSuccess: () => setGitConfig({ source: 'github', token: '' }),
+    });
   };
 
   return (
@@ -200,49 +170,14 @@ export default function Settings() {
               </Select>
             </FormControl>
 
-            <TextField
-              fullWidth
-              label="API Key"
-              name="api_key"
-              type="password"
-              value={llmConfig.api_key}
-              onChange={handleLlmChange}
-              sx={{ mb: 3 }}
-              required
-            />
+            <TextField fullWidth label="API Key" name="api_key" type="password" value={llmConfig.api_key} onChange={handleLlmChange} sx={{ mb: 3 }} required />
 
-            <TextField
-              fullWidth
-              label="Model (Optional)"
-              name="model"
-              value={llmConfig.model}
-              onChange={handleLlmChange}
-              helperText="Leave empty for default model"
-              sx={{ mb: 3 }}
-            />
+            <TextField fullWidth label="Model (Optional)" name="model" value={llmConfig.model} onChange={handleLlmChange} helperText="Leave empty for default model" sx={{ mb: 3 }} />
 
             {llmConfig.provider === 'azure' && (
               <>
-                <TextField
-                  fullWidth
-                  label="Azure Endpoint"
-                  name="endpoint"
-                  value={llmConfig.endpoint}
-                  onChange={handleLlmChange}
-                  placeholder="https://your-resource.openai.azure.com"
-                  sx={{ mb: 3 }}
-                  required
-                />
-
-                <TextField
-                  fullWidth
-                  label="Deployment Name"
-                  name="deployment_name"
-                  value={llmConfig.deployment_name}
-                  onChange={handleLlmChange}
-                  sx={{ mb: 3 }}
-                  required
-                />
+                <TextField fullWidth label="Azure Endpoint" name="endpoint" value={llmConfig.endpoint} onChange={handleLlmChange} placeholder="https://your-resource.openai.azure.com" sx={{ mb: 3 }} required />
+                <TextField fullWidth label="Deployment Name" name="deployment_name" value={llmConfig.deployment_name} onChange={handleLlmChange} sx={{ mb: 3 }} required />
               </>
             )}
 
@@ -250,11 +185,7 @@ export default function Settings() {
               <Button variant="contained" onClick={handleSaveLlm}>
                 Save Configuration
               </Button>
-              <Button
-                variant="outlined"
-                onClick={handleTestConnection}
-                disabled={testing}
-              >
+              <Button variant="outlined" onClick={handleTestConnection} disabled={testing}>
                 {testing ? 'Testing...' : 'Test Connection'}
               </Button>
             </Box>
@@ -264,11 +195,11 @@ export default function Settings() {
                 Configuration Guide:
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                • <strong>Claude:</strong> Get your API key from console.anthropic.com
+                <strong>Claude:</strong> Get your API key from console.anthropic.com
                 <br />
-                • <strong>OpenAI:</strong> Get your API key from platform.openai.com
+                <strong>OpenAI:</strong> Get your API key from platform.openai.com
                 <br />
-                • <strong>Azure OpenAI:</strong> Requires endpoint URL and deployment name from Azure Portal
+                <strong>Azure OpenAI:</strong> Requires endpoint URL and deployment name from Azure Portal
               </Typography>
             </Box>
           </Box>
@@ -290,28 +221,13 @@ export default function Settings() {
           <Box component="form" sx={{ px: 2 }}>
             <FormControl fullWidth sx={{ mb: 3 }}>
               <InputLabel>Git Provider</InputLabel>
-              <Select
-                name="source"
-                value={gitConfig.source}
-                label="Git Provider"
-                onChange={handleGitChange}
-              >
+              <Select name="source" value={gitConfig.source} label="Git Provider" onChange={handleGitChange}>
                 <MenuItem value="github">GitHub</MenuItem>
                 <MenuItem value="gitlab">GitLab</MenuItem>
               </Select>
             </FormControl>
 
-            <TextField
-              fullWidth
-              label="Access Token"
-              name="token"
-              type="password"
-              value={gitConfig.token}
-              onChange={handleGitChange}
-              helperText="Required for accessing private repositories"
-              sx={{ mb: 3 }}
-              required
-            />
+            <TextField fullWidth label="Access Token" name="token" type="password" value={gitConfig.token} onChange={handleGitChange} helperText="Required for accessing private repositories" sx={{ mb: 3 }} required />
 
             <Button variant="contained" onClick={handleSaveGit}>
               Save Token
@@ -322,9 +238,9 @@ export default function Settings() {
                 How to generate tokens:
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                • <strong>GitHub:</strong> Settings → Developer settings → Personal access tokens → Generate new token
+                <strong>GitHub:</strong> Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Generate new token
                 <br />
-                • <strong>GitLab:</strong> Preferences → Access Tokens → Add new token
+                <strong>GitLab:</strong> Preferences &rarr; Access Tokens &rarr; Add new token
                 <br />
                 <br />
                 Required scopes: repo (GitHub) or read_repository (GitLab)

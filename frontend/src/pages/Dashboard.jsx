@@ -20,6 +20,7 @@ import {
   BugReport,
 } from '@mui/icons-material';
 import { analysisAPI, repositoryAPI } from '../services/api';
+import { getStatusColor } from '../utils/statusColors';
 
 export default function Dashboard() {
   const [analyses, setAnalyses] = useState([]);
@@ -44,16 +45,6 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      completed: 'success',
-      running: 'info',
-      pending: 'warning',
-      failed: 'error',
-    };
-    return colors[status] || 'default';
   };
 
   const completedAnalyses = analyses.filter((a) => a.status === 'completed');

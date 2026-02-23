@@ -2,9 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
-from app.api import auth, repositories, analyses, settings as settings_api, tenants
-
-# Import refactored auth v2
+from app.api import repositories, analyses, settings as settings_api, tenants
 from app.api import auth_v2
 
 # Import tenant middleware
@@ -50,7 +48,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers
+    allow_origins=settings.CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -72,9 +70,8 @@ setup_security_middleware(app)
 setup_rate_limiting(app)
 
 # Include routers
-app.include_router(tenants.router, prefix="/api")  # Tenant management (always available)
-app.include_router(auth.router, prefix="/api")      # Old auth (v1)
-app.include_router(auth_v2.router, prefix="/api/v2") # New auth (v2) - REFACTORED!
+app.include_router(tenants.router, prefix="/api")
+app.include_router(auth_v2.router, prefix="/api/v2")
 app.include_router(repositories.router, prefix="/api")
 app.include_router(analyses.router, prefix="/api")
 app.include_router(settings_api.router, prefix="/api")

@@ -224,7 +224,11 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: '#0052CC',
+          color: '#FFFFFF',
           boxShadow: '0 2px 4px rgba(9, 30, 66, 0.2)',
+          '& .MuiTypography-root': {
+            color: 'inherit',
+          },
         },
         colorPrimary: {
           backgroundColor: '#0052CC',

@@ -7,40 +7,36 @@ from app.models.user import User
 from app.models.repository import Repository
 from app.schemas.repository import RepositoryCreate, RepositoryResponse
 from app.services.repo_service import RepoService
+from app.repositories.repository_repository import RepositoryRepository
 
 router = APIRouter(prefix="/repositories", tags=["Repositories"])
+
+
+def _get_repository_repo(db: Session = Depends(get_db)) -> RepositoryRepository:
+    return RepositoryRepository(db)
 
 
 @router.post("/", response_model=RepositoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_repository(
     repo_data: RepositoryCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    repo_repo: RepositoryRepository = Depends(_get_repository_repo),
 ):
     """Add a new repository for analysis"""
     try:
-        # Initialize repo service
         repo_service = RepoService(
             source=repo_data.source,
             token=repo_data.access_token
         )
 
-        # Fetch repository information
         repo_info = await repo_service.get_repo_info(repo_data.url)
 
-        # Check if repository already exists for this user
-        existing_repo = db.query(Repository).filter(
-            Repository.user_id == current_user.id,
-            Repository.url == repo_data.url
-        ).first()
-
-        if existing_repo:
+        if repo_repo.exists_for_user(current_user.id, repo_data.url):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Repository already exists"
             )
 
-        # Create repository record
         repository = Repository(
             user_id=current_user.id,
             name=repo_info["name"],
@@ -52,12 +48,10 @@ async def create_repository(
             forks=repo_info.get("forks", 0),
         )
 
-        db.add(repository)
-        db.commit()
-        db.refresh(repository)
+        return repo_repo.create(repository)
 
-        return repository
-
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -68,27 +62,20 @@ async def create_repository(
 @router.get("/", response_model=List[RepositoryResponse])
 def list_repositories(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    repo_repo: RepositoryRepository = Depends(_get_repository_repo),
 ):
     """List all repositories for the current user"""
-    repositories = db.query(Repository).filter(
-        Repository.user_id == current_user.id
-    ).order_by(Repository.created_at.desc()).all()
-
-    return repositories
+    return repo_repo.find_by_user(current_user.id)
 
 
 @router.get("/{repository_id}", response_model=RepositoryResponse)
 def get_repository(
     repository_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    repo_repo: RepositoryRepository = Depends(_get_repository_repo),
 ):
     """Get a specific repository"""
-    repository = db.query(Repository).filter(
-        Repository.id == repository_id,
-        Repository.user_id == current_user.id
-    ).first()
+    repository = repo_repo.find_by_id_and_user(repository_id, current_user.id)
 
     if not repository:
         raise HTTPException(
@@ -103,13 +90,10 @@ def get_repository(
 def delete_repository(
     repository_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    repo_repo: RepositoryRepository = Depends(_get_repository_repo),
 ):
     """Delete a repository"""
-    repository = db.query(Repository).filter(
-        Repository.id == repository_id,
-        Repository.user_id == current_user.id
-    ).first()
+    repository = repo_repo.find_by_id_and_user(repository_id, current_user.id)
 
     if not repository:
         raise HTTPException(
@@ -117,7 +101,6 @@ def delete_repository(
             detail="Repository not found"
         )
 
-    db.delete(repository)
-    db.commit()
+    repo_repo.delete(repository)
 
     return None

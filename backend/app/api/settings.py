@@ -5,19 +5,23 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.dependencies import get_current_admin_user
 from app.models.user import User
-from app.models.settings import SystemSettings
+from app.repositories.settings_repository import SettingsRepository
 from app.schemas.settings import SystemSettingUpdate, SystemSettingResponse, LLMProviderConfig, GitConfig
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
 
+def _get_settings_repo(db: Session = Depends(get_db)) -> SettingsRepository:
+    return SettingsRepository(db)
+
+
 @router.get("/", response_model=List[SystemSettingResponse])
 def list_settings(
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_db)
+    repo: SettingsRepository = Depends(_get_settings_repo),
 ):
     """List all system settings (admin only)"""
-    settings = db.query(SystemSettings).all()
+    settings = repo.get_all()
 
     # Mask sensitive values
     for setting in settings:
@@ -31,69 +35,23 @@ def list_settings(
 def configure_llm_provider(
     config: LLMProviderConfig,
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_db)
+    repo: SettingsRepository = Depends(_get_settings_repo),
+    db: Session = Depends(get_db),
 ):
     """Configure LLM provider (admin only)"""
-    # Update or create provider setting
-    provider_setting = db.query(SystemSettings).filter(
-        SystemSettings.key == "llm_provider"
-    ).first()
+    repo.upsert("llm_provider", config.provider, description="Active LLM provider")
+    repo.upsert(
+        f"{config.provider}_api_key",
+        config.api_key,
+        description=f"API key for {config.provider}",
+        is_encrypted=True,
+    )
 
-    if provider_setting:
-        provider_setting.value = config.provider
-    else:
-        provider_setting = SystemSettings(
-            key="llm_provider",
-            value=config.provider,
-            description="Active LLM provider"
-        )
-        db.add(provider_setting)
-
-    # Update or create API key
-    api_key_setting = db.query(SystemSettings).filter(
-        SystemSettings.key == f"{config.provider}_api_key"
-    ).first()
-
-    if api_key_setting:
-        api_key_setting.value = config.api_key
-    else:
-        api_key_setting = SystemSettings(
-            key=f"{config.provider}_api_key",
-            value=config.api_key,
-            is_encrypted=True,
-            description=f"API key for {config.provider}"
-        )
-        db.add(api_key_setting)
-
-    # For Azure, store additional settings
     if config.provider == "azure":
         if config.endpoint:
-            endpoint_setting = db.query(SystemSettings).filter(
-                SystemSettings.key == "azure_endpoint"
-            ).first()
-            if endpoint_setting:
-                endpoint_setting.value = config.endpoint
-            else:
-                endpoint_setting = SystemSettings(
-                    key="azure_endpoint",
-                    value=config.endpoint,
-                    description="Azure OpenAI endpoint"
-                )
-                db.add(endpoint_setting)
-
+            repo.upsert("azure_endpoint", config.endpoint, description="Azure OpenAI endpoint")
         if config.deployment_name:
-            deployment_setting = db.query(SystemSettings).filter(
-                SystemSettings.key == "azure_deployment_name"
-            ).first()
-            if deployment_setting:
-                deployment_setting.value = config.deployment_name
-            else:
-                deployment_setting = SystemSettings(
-                    key="azure_deployment_name",
-                    value=config.deployment_name,
-                    description="Azure OpenAI deployment name"
-                )
-                db.add(deployment_setting)
+            repo.upsert("azure_deployment_name", config.deployment_name, description="Azure OpenAI deployment name")
 
     db.commit()
 
@@ -104,26 +62,16 @@ def configure_llm_provider(
 def configure_git(
     config: GitConfig,
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_db)
+    repo: SettingsRepository = Depends(_get_settings_repo),
+    db: Session = Depends(get_db),
 ):
     """Configure Git provider token (admin only)"""
-    token_key = f"{config.source}_token"
-
-    token_setting = db.query(SystemSettings).filter(
-        SystemSettings.key == token_key
-    ).first()
-
-    if token_setting:
-        token_setting.value = config.token
-    else:
-        token_setting = SystemSettings(
-            key=token_key,
-            value=config.token,
-            is_encrypted=True,
-            description=f"Access token for {config.source}"
-        )
-        db.add(token_setting)
-
+    repo.upsert(
+        f"{config.source}_token",
+        config.token,
+        description=f"Access token for {config.source}",
+        is_encrypted=True,
+    )
     db.commit()
 
     return {"message": f"{config.source} token configured successfully"}
@@ -132,12 +80,10 @@ def configure_git(
 @router.get("/current-llm-provider")
 def get_current_llm_provider(
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_db)
+    repo: SettingsRepository = Depends(_get_settings_repo),
 ):
     """Get current LLM provider"""
-    provider_setting = db.query(SystemSettings).filter(
-        SystemSettings.key == "llm_provider"
-    ).first()
+    provider_setting = repo.get_by_key("llm_provider")
 
     return {
         "provider": provider_setting.value if provider_setting else "not_configured"
@@ -152,12 +98,10 @@ class TestConnectionResponse(BaseModel):
 @router.post("/test-llm-connection", response_model=TestConnectionResponse)
 def test_llm_connection(
     current_user: User = Depends(get_current_admin_user),
-    db: Session = Depends(get_db)
+    repo: SettingsRepository = Depends(_get_settings_repo),
 ):
     """Test that the configured LLM API key works (admin only)"""
-    provider_setting = db.query(SystemSettings).filter(
-        SystemSettings.key == "llm_provider"
-    ).first()
+    provider_setting = repo.get_by_key("llm_provider")
 
     if not provider_setting:
         return TestConnectionResponse(
@@ -166,9 +110,7 @@ def test_llm_connection(
         )
 
     provider = provider_setting.value
-    api_key_setting = db.query(SystemSettings).filter(
-        SystemSettings.key == f"{provider}_api_key"
-    ).first()
+    api_key_setting = repo.get_by_key(f"{provider}_api_key")
 
     if not api_key_setting:
         return TestConnectionResponse(
@@ -179,12 +121,8 @@ def test_llm_connection(
     # Build kwargs for Azure
     kwargs = {}
     if provider == "azure":
-        endpoint_setting = db.query(SystemSettings).filter(
-            SystemSettings.key == "azure_endpoint"
-        ).first()
-        deployment_setting = db.query(SystemSettings).filter(
-            SystemSettings.key == "azure_deployment_name"
-        ).first()
+        endpoint_setting = repo.get_by_key("azure_endpoint")
+        deployment_setting = repo.get_by_key("azure_deployment_name")
         if not endpoint_setting or not deployment_setting:
             return TestConnectionResponse(
                 success=False,
@@ -200,7 +138,6 @@ def test_llm_connection(
             api_key=api_key_setting.value,
             **kwargs
         )
-        # Make a minimal call to verify the key works
         from langchain.schema import HumanMessage
         response = service.client.invoke([HumanMessage(content="Reply with OK")])
         return TestConnectionResponse(

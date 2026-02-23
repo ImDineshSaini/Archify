@@ -4,12 +4,21 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.dependencies import get_current_user
 from app.models.user import User
-from app.models.repository import Repository
 from app.models.analysis import Analysis, AnalysisStatus
 from app.schemas.analysis import AnalysisCreate, AnalysisResponse
 from app.services.analysis_service import AnalysisService
+from app.repositories.analysis_repository import AnalysisRepository
+from app.repositories.repository_repository import RepositoryRepository
 
 router = APIRouter(prefix="/analyses", tags=["Analyses"])
+
+
+def _get_analysis_repo(db: Session = Depends(get_db)) -> AnalysisRepository:
+    return AnalysisRepository(db)
+
+
+def _get_repository_repo(db: Session = Depends(get_db)) -> RepositoryRepository:
+    return RepositoryRepository(db)
 
 
 async def run_analysis_background(analysis_id: int, db: Session):
@@ -23,14 +32,12 @@ async def create_analysis(
     analysis_data: AnalysisCreate,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    repo_repo: RepositoryRepository = Depends(_get_repository_repo),
+    analysis_repo: AnalysisRepository = Depends(_get_analysis_repo),
 ):
     """Start a new code analysis"""
-    # Verify repository exists and belongs to user
-    repository = db.query(Repository).filter(
-        Repository.id == analysis_data.repository_id,
-        Repository.user_id == current_user.id
-    ).first()
+    repository = repo_repo.find_by_id_and_user(analysis_data.repository_id, current_user.id)
 
     if not repository:
         raise HTTPException(
@@ -38,17 +45,12 @@ async def create_analysis(
             detail="Repository not found"
         )
 
-    # Create analysis record
     analysis = Analysis(
         repository_id=repository.id,
         status=AnalysisStatus.PENDING
     )
+    analysis = analysis_repo.create(analysis)
 
-    db.add(analysis)
-    db.commit()
-    db.refresh(analysis)
-
-    # Run analysis in background
     background_tasks.add_task(run_analysis_background, analysis.id, db)
 
     return analysis
@@ -57,33 +59,21 @@ async def create_analysis(
 @router.get("/", response_model=List[AnalysisResponse])
 def list_analyses(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    repository_id: int = None
+    analysis_repo: AnalysisRepository = Depends(_get_analysis_repo),
+    repository_id: int = None,
 ):
     """List all analyses for the current user"""
-    query = db.query(Analysis).join(Repository).filter(
-        Repository.user_id == current_user.id
-    )
-
-    if repository_id:
-        query = query.filter(Analysis.repository_id == repository_id)
-
-    analyses = query.order_by(Analysis.created_at.desc()).all()
-
-    return analyses
+    return analysis_repo.find_all_by_user(current_user.id, repository_id)
 
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 def get_analysis(
     analysis_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    analysis_repo: AnalysisRepository = Depends(_get_analysis_repo),
 ):
     """Get a specific analysis"""
-    analysis = db.query(Analysis).join(Repository).filter(
-        Analysis.id == analysis_id,
-        Repository.user_id == current_user.id
-    ).first()
+    analysis = analysis_repo.find_by_id_and_user(analysis_id, current_user.id)
 
     if not analysis:
         raise HTTPException(
@@ -98,13 +88,10 @@ def get_analysis(
 def delete_analysis(
     analysis_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    analysis_repo: AnalysisRepository = Depends(_get_analysis_repo),
 ):
     """Delete an analysis"""
-    analysis = db.query(Analysis).join(Repository).filter(
-        Analysis.id == analysis_id,
-        Repository.user_id == current_user.id
-    ).first()
+    analysis = analysis_repo.find_by_id_and_user(analysis_id, current_user.id)
 
     if not analysis:
         raise HTTPException(
@@ -112,7 +99,6 @@ def delete_analysis(
             detail="Analysis not found"
         )
 
-    db.delete(analysis)
-    db.commit()
+    analysis_repo.delete(analysis)
 
     return None

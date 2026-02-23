@@ -23,7 +23,7 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/material';
-import { Add, Delete, PlayArrow, Folder, Refresh } from '@mui/icons-material';
+import { Add, Delete, PlayArrow, Folder, Refresh, Star, CallSplit } from '@mui/icons-material';
 import { repositoryAPI, analysisAPI } from '../services/api';
 
 export default function Repositories() {
@@ -172,11 +172,11 @@ export default function Repositories() {
                   </Typography>
 
                   <Box display="flex" gap={2}>
-                    <Typography variant="caption" color="text.secondary">
-                      ⭐ {repo.stars}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Star sx={{ fontSize: 14 }} /> {repo.stars}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      🔱 {repo.forks}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <CallSplit sx={{ fontSize: 14 }} /> {repo.forks}
                     </Typography>
                   </Box>
                 </CardContent>

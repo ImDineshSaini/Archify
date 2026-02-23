@@ -48,7 +48,7 @@ Open http://localhost:3000 to get started.
 
 ## Local Development
 
-See [LOCAL_SETUP.md](LOCAL_SETUP.md) for running without Docker.
+See [docs/setup.md](docs/setup.md) for running without Docker.
 
 ## License
 

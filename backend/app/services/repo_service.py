@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional
 from git import Repo, GitCommandError
 import httpx
 from pathlib import Path
+from app.core.constants import GITHUB_API_BASE_URL, GITLAB_API_BASE_URL
 
 
 class RepoService:
@@ -18,9 +19,9 @@ class RepoService:
     def _get_base_url(self) -> str:
         """Get the API base URL for the repository source"""
         if self.source == "github":
-            return "https://api.github.com"
+            return GITHUB_API_BASE_URL
         elif self.source == "gitlab":
-            return "https://gitlab.com/api/v4"
+            return GITLAB_API_BASE_URL
         else:
             raise ValueError(f"Unsupported source: {self.source}")
 
